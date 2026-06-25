@@ -23,8 +23,8 @@ describe("portable app box", () => {
         "app/page.tsx",
         "lib/server/config.ts",
         "migrations/001_initial.sql",
-        "sample-data/scoping_review/full_text_screening.csv",
-        "sample-data/scoping_review/controlled_vocabularies.json",
+        "sample-data/review_data/full_text_screening.csv",
+        "sample-data/review_data/controlled_vocabularies.json",
         "sample-data/papers_md/FT0001_sample.md"
       ])
     );

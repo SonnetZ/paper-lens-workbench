@@ -3,6 +3,6 @@ import { NextResponse } from "next/server";
 export function GET() {
   return NextResponse.json({
     ok: true,
-    app: "scoping-review-reader"
+    app: "paper-lens-workbench"
   });
 }

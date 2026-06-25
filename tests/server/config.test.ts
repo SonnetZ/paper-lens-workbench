@@ -5,7 +5,7 @@ describe("resolveAppConfig", () => {
   it("uses portable sample-data defaults", () => {
     const config = resolveAppConfig({}, "/tmp/reader");
 
-    expect(config.reviewDataDir).toBe("/tmp/reader/sample-data/scoping_review");
+    expect(config.reviewDataDir).toBe("/tmp/reader/sample-data/review_data");
     expect(config.paperMdDir).toBe("/tmp/reader/sample-data/papers_md");
     expect(config.paperPdfDir).toBe("/tmp/reader/sample-data/papers_pdf");
     expect(config.readerDbPath).toBe("/tmp/reader/reader.sqlite");

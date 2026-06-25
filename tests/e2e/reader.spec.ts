@@ -3,9 +3,9 @@ import os from "node:os";
 import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 
-const e2eDataRoot = path.join(os.tmpdir(), "scoping-review-reader-e2e");
+const e2eDataRoot = path.join(os.tmpdir(), "paper-lens-workbench-e2e");
 const e2eDbPath = path.join(e2eDataRoot, "reader.sqlite");
-const e2eReviewDir = path.join(e2eDataRoot, "scoping_review");
+const e2eReviewDir = path.join(e2eDataRoot, "review_data");
 const e2eMarkdownDir = path.join(e2eDataRoot, "papers_md");
 const e2ePdfDir = path.join(e2eDataRoot, "papers_pdf");
 const e2eReviewCsvPath = path.join(e2eReviewDir, "full_text_screening.csv");

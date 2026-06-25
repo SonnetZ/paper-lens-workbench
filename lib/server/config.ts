@@ -22,7 +22,7 @@ export function resolveAppConfig(
 
   return {
     llmMode: resolveMode(env.LLM_MODE),
-    reviewDataDir: resolvePath(env.REVIEW_DATA_DIR, cwd, "./sample-data/scoping_review"),
+    reviewDataDir: resolvePath(env.REVIEW_DATA_DIR, cwd, "./sample-data/review_data"),
     paperPdfDir: resolvePath(env.PAPER_PDF_DIR, cwd, "./sample-data/papers_pdf"),
     paperMdDir: resolvePath(env.PAPER_MD_DIR, cwd, "./sample-data/papers_md"),
     readerDbPath: resolvePath(env.READER_DB_PATH, cwd, "./reader.sqlite"),

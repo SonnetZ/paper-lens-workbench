@@ -1,6 +1,6 @@
 # Development
 
-Run commands from `apps/scoping-review-reader/`.
+Run commands from the Paper Lens Workbench repository root.
 
 ```bash
 npm install
@@ -17,8 +17,8 @@ Use `LLM_MODE=mock` for automated tests. Do not test full-paper prompts against 
 ## Portability Rules
 
 Treat this directory as a movable app box. Code inside the box should not rely
-on files above `apps/scoping-review-reader/` unless the user has configured
-external corpus paths in `.env.local`.
+on files outside the app repository unless the user has configured external
+corpus paths in `.env.local`.
 
 The portability check verifies:
 

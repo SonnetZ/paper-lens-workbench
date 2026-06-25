@@ -3,8 +3,8 @@ import os from "node:os";
 import path from "node:path";
 import { defineConfig, devices } from "@playwright/test";
 
-const e2eDataRoot = path.join(os.tmpdir(), "scoping-review-reader-e2e");
-const e2eReviewDir = path.join(e2eDataRoot, "scoping_review");
+const e2eDataRoot = path.join(os.tmpdir(), "paper-lens-workbench-e2e");
+const e2eReviewDir = path.join(e2eDataRoot, "review_data");
 const e2eMarkdownDir = path.join(e2eDataRoot, "papers_md");
 const e2ePdfDir = path.join(e2eDataRoot, "papers_pdf");
 const e2eExportDir = path.join(e2eDataRoot, "exports");
@@ -13,7 +13,7 @@ const e2eBaseUrl = `http://127.0.0.1:${e2ePort}`;
 
 fs.rmSync(e2eDataRoot, { recursive: true, force: true });
 fs.mkdirSync(e2eDataRoot, { recursive: true });
-fs.cpSync(path.resolve("sample-data/scoping_review"), e2eReviewDir, { recursive: true });
+fs.cpSync(path.resolve("sample-data/review_data"), e2eReviewDir, { recursive: true });
 fs.cpSync(path.resolve("sample-data/papers_md"), e2eMarkdownDir, { recursive: true });
 fs.cpSync(path.resolve("sample-data/papers_pdf"), e2ePdfDir, { recursive: true });
 

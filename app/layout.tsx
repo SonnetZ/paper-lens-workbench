@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Scoping Review Reader",
-  description: "Local paper reader and evidence workspace for scoping reviews"
+  title: "Paper Lens Workbench",
+  description: "Local LLM-assisted paper reading and evidence review workspace"
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

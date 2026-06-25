@@ -120,7 +120,7 @@ async function callOpenAiCompatibleScopedAsk(
         {
           role: "system",
           content:
-            "You support scoping review screening and extraction. Answer only from the supplied evidence packets. If evidence is insufficient, say so."
+            "You support evidence-based paper reading, screening, extraction, and review synthesis. Answer only from the supplied evidence packets. If evidence is insufficient, say so."
         },
         {
           role: "user",

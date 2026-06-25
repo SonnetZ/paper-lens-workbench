@@ -45,7 +45,7 @@ To connect a real corpus, edit `.env.local` so the data paths point to local
 copies of the review data:
 
 ```bash
-REVIEW_DATA_DIR=/absolute/path/to/scoping_review
+REVIEW_DATA_DIR=/absolute/path/to/review_data
 PAPER_MD_DIR=/absolute/path/to/papers_md
 PAPER_PDF_DIR=/absolute/path/to/papers_pdf
 READER_DB_PATH=/absolute/path/to/reader.sqlite

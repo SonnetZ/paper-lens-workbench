@@ -1,9 +1,9 @@
-# Scoping Review Reader
+# Paper Lens Workbench
 
-A local, portable web app for reading papers, capturing evidence, and completing scoping-review screening and extraction work.
+A local, portable web app for LLM-assisted paper reading, PDF/Markdown evidence capture, screening, extraction, and corpus-level review work.
 
-The app is intentionally contained inside this directory. It can be copied,
-archived, and shared without the legacy `lit_reviewer` code around it.
+The app is intentionally self-contained. It can be copied, archived, and shared
+as a standalone project without private corpora or local runtime state.
 
 ## Quick Start
 
@@ -17,12 +17,10 @@ Open the local URL printed by Next.js.
 
 ## Portable App Box
 
-This directory is designed to be copied as a self-contained app. From the
-original repository:
+This directory is designed to be copied or cloned as a self-contained app:
 
 ```bash
-cp -R apps/scoping-review-reader /path/to/scoping-review-reader
-cd /path/to/scoping-review-reader
+cd /path/to/paper-lens-workbench
 npm install
 cp .env.example .env.local
 npm run portable:check
@@ -36,7 +34,7 @@ npm run portable:smoke
 npm run portable:pack
 ```
 
-The archive is written to `dist/scoping-review-reader-0.1.0-portable.tar.gz`.
+The archive is written to `dist/paper-lens-workbench-0.1.0-portable.tar.gz`.
 It includes source code, migrations, tests, docs, and synthetic sample data.
 It excludes generated and private local state such as `node_modules/`, `.next/`,
 `test-results/`, `playwright-report/`, `exports/`, `.env`, `.env.*`,
@@ -45,9 +43,9 @@ It excludes generated and private local state such as `node_modules/`, `.next/`,
 To test the archive without touching your working copy:
 
 ```bash
-mkdir -p /tmp/scoping-reader-check
-tar -xzf dist/scoping-review-reader-0.1.0-portable.tar.gz -C /tmp/scoping-reader-check
-cd /tmp/scoping-reader-check/scoping-review-reader
+mkdir -p /tmp/paper-lens-check
+tar -xzf dist/paper-lens-workbench-0.1.0-portable.tar.gz -C /tmp/paper-lens-check
+cd /tmp/paper-lens-check/paper-lens-workbench
 npm install
 cp .env.example .env.local
 npm run portable:check
@@ -79,7 +77,7 @@ The default `.env.example` points to synthetic `sample-data/` so the app can run
 To use a real review corpus after copying the app, edit `.env.local`:
 
 ```bash
-REVIEW_DATA_DIR=/absolute/path/to/scoping_review
+REVIEW_DATA_DIR=/absolute/path/to/review_data
 PAPER_MD_DIR=/absolute/path/to/papers_md
 PAPER_PDF_DIR=/absolute/path/to/papers_pdf
 READER_DB_PATH=/absolute/path/to/reader.sqlite
@@ -110,7 +108,7 @@ Online models. Full-paper model calls remain blocked.
 After starting the app, `GET /api/health` should return:
 
 ```json
-{ "ok": true, "app": "scoping-review-reader" }
+{ "ok": true, "app": "paper-lens-workbench" }
 ```
 
 ## Local LLM Safety

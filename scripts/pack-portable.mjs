@@ -32,7 +32,7 @@ if (!flags.dryRun) {
   fs.mkdirSync(path.dirname(archivePath), { recursive: true });
   const result = spawnSync(
     "tar",
-    ["-czf", archivePath, "--transform", "s,^,scoping-review-reader/,", ...includedFiles],
+    ["-czf", archivePath, "--transform", "s,^,paper-lens-workbench/,", ...includedFiles],
     {
       cwd: appRoot,
       encoding: "utf8"

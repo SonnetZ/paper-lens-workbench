@@ -12,8 +12,8 @@ export function runPortableSmokeCheck(appRoot, options = {}) {
   const root = path.resolve(appRoot);
   const archiveName = getArchiveName(root);
   const archivePath = path.join(root, "dist", archiveName);
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "scoping-reader-smoke-"));
-  const unpackedAppRoot = path.join(tempRoot, "scoping-review-reader");
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "paper-lens-smoke-"));
+  const unpackedAppRoot = path.join(tempRoot, "paper-lens-workbench");
   const steps = [];
   const issues = [];
 
@@ -25,7 +25,7 @@ export function runPortableSmokeCheck(appRoot, options = {}) {
     fs.mkdirSync(path.dirname(archivePath), { recursive: true });
     const packResult = spawnSync(
       "tar",
-      ["-czf", archivePath, "--transform", "s,^,scoping-review-reader/,", ...listPortableFiles(root)],
+      ["-czf", archivePath, "--transform", "s,^,paper-lens-workbench/,", ...listPortableFiles(root)],
       { cwd: root, encoding: "utf8" }
     );
     steps.push({ name: "archive-pack", ok: packResult.status === 0 });

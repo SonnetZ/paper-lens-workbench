@@ -37,7 +37,7 @@ describe("portable scripts", () => {
     const plan = buildPortablePackPlan(appRoot);
 
     expect(plan.ok).toBe(true);
-    expect(plan.archiveName).toMatch(/^scoping-review-reader-0\.1\.0-portable\.tar\.gz$/);
+    expect(plan.archiveName).toMatch(/^paper-lens-workbench-0\.1\.0-portable\.tar\.gz$/);
     expect(plan.includedFiles).toContain("package.json");
     expect(plan.includedFiles).toContain("package-lock.json");
     expect(plan.includedFiles).toContain(".env.example");

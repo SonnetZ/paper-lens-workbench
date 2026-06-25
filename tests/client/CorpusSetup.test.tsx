@@ -10,7 +10,7 @@ describe("CorpusSetup", () => {
       if (url === "/api/corpus-config" && !init) {
         return Response.json({
           config: {
-            reviewDataDir: "/sample/scoping_review",
+            reviewDataDir: "/sample/review_data",
             paperMdDir: "/sample/papers_md",
             paperPdfDir: "/sample/papers_pdf",
             readerDbPath: "/sample/reader.sqlite",
@@ -60,11 +60,11 @@ describe("CorpusSetup", () => {
     render(<CorpusSetup onCorpusApplied={onCorpusApplied} />);
 
     expect(await screen.findByRole("button", { name: "Corpus setup" })).toBeInTheDocument();
-    expect(screen.queryByDisplayValue("/sample/scoping_review")).not.toBeInTheDocument();
+    expect(screen.queryByDisplayValue("/sample/review_data")).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Corpus setup" }));
 
-    expect(await screen.findByDisplayValue("/sample/scoping_review")).toBeInTheDocument();
+    expect(await screen.findByDisplayValue("/sample/review_data")).toBeInTheDocument();
     await replaceValue("Review data folder", "/real/review");
     await replaceValue("Markdown papers folder", "/real/md");
     await replaceValue("PDF papers folder", "/real/pdf");
@@ -95,7 +95,7 @@ describe("CorpusSetup", () => {
       if (url === "/api/corpus-config" && !init) {
         return Response.json({
           config: {
-            reviewDataDir: "/sample/scoping_review",
+            reviewDataDir: "/sample/review_data",
             paperMdDir: "/sample",
             paperPdfDir: "/sample/papers_pdf",
             readerDbPath: "/sample/reader.sqlite",
