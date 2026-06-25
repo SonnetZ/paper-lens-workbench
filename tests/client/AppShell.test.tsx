@@ -39,6 +39,32 @@ const savedEvidence: EvidencePacket = {
 };
 
 describe("AppShell evidence persistence", () => {
+  it("keeps the reading column viewport-height with a bounded evidence tray", () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url === "/api/evidence?recordId=FT0001") {
+        return Response.json({ evidence: [] });
+      }
+      if (url === "/api/papers/FT0001/screening") {
+        return Response.json({ screening: screeningRow() });
+      }
+      if (url === "/api/papers/FT0001/extraction") {
+        return Response.json({ extraction: extractionArtifact() });
+      }
+      return Response.json({ content: "" });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<AppShell initialPapers={papers} />);
+
+    expect(screen.getByLabelText("Reading column")).toHaveClass("md:h-[100dvh]");
+    expect(screen.getByLabelText("Reading column")).toHaveClass(
+      "grid-rows-[minmax(0,1fr)_auto]"
+    );
+    expect(screen.getByRole("complementary", { name: "Evidence tray" })).toHaveClass(
+      "md:max-h-[34dvh]"
+    );
+  });
+
   it("loads persisted evidence for the selected paper", async () => {
     const fetchMock = vi.fn(async (url: string) => {
       if (url === "/api/evidence?recordId=FT0001") {

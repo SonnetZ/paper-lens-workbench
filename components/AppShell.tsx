@@ -142,7 +142,10 @@ export function AppShell({ initialPapers }: Props) {
         onSelect={setSelectedRecordId}
         onCorpusApplied={reloadPapers}
       />
-      <section className="grid min-h-[60dvh] grid-rows-[1fr_auto] border-r border-swiss-rule">
+      <section
+        aria-label="Reading column"
+        className="grid min-h-[60dvh] grid-rows-[minmax(0,1fr)_auto] border-r border-swiss-rule md:h-[100dvh] md:min-h-0"
+      >
         <ReaderShell
           paper={selectedPaper}
           onEvidence={saveEvidence}

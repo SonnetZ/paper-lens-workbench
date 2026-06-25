@@ -256,6 +256,63 @@ textarea {
   border-top: 1px solid #e4e4e7;
 }
 
+.pdf-reader-surface {
+  position: relative;
+  min-height: 0;
+  padding: 20px;
+  background: #f7f7f8;
+}
+
+.pdf-page {
+  position: relative;
+  margin: 0 auto 20px;
+  background: #ffffff;
+  box-shadow: 0 12px 30px rgba(24, 24, 27, 0.14);
+}
+
+.pdf-page-canvas {
+  display: block;
+}
+
+.pdf-text-layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  line-height: 1;
+  text-align: initial;
+}
+
+.pdf-text-layer span,
+.pdf-text-layer br {
+  position: absolute;
+  color: transparent;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+}
+
+.pdf-text-layer ::selection {
+  background: rgba(228, 0, 43, 0.28);
+}
+
+.pdf-reader-status,
+.pdf-reader-error {
+  position: absolute;
+  left: 20px;
+  top: 16px;
+  margin: 0;
+  border-left: 2px solid #e4e4e7;
+  background: rgba(255, 255, 255, 0.92);
+  padding: 7px 10px;
+  font-family: "Geist Mono", "SFMono-Regular", Consolas, monospace;
+  font-size: 12px;
+}
+
+.pdf-reader-error {
+  border-left-color: #e4002b;
+  color: #e4002b;
+}
+
 @media (max-width: 640px) {
   .markdown-paper {
     font-size: 15px;

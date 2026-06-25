@@ -75,7 +75,7 @@ export function EvidenceTray({
   return (
     <aside
       aria-labelledby="evidence-tray-title"
-      className="border-t border-swiss-rule bg-swiss-wash px-4 py-3"
+      className="border-t border-swiss-rule bg-swiss-wash px-4 py-3 md:max-h-[34dvh] md:overflow-auto"
     >
       <div className="flex items-center justify-between">
         <h2 id="evidence-tray-title" className="text-sm font-semibold">

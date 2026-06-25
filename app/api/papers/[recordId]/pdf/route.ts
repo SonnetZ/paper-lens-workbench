@@ -6,7 +6,8 @@ import { getPaperByRecordId } from "@/lib/server/sourceRegistry";
 
 export async function GET(_: Request, { params }: { params: Promise<{ recordId: string }> }) {
   const { recordId } = await params;
-  const paper = await getPaperByRecordId(getEffectiveAppConfig(resolveAppConfig()), recordId);
+  const config = getEffectiveAppConfig(resolveAppConfig());
+  const paper = await getPaperByRecordId(config, recordId);
   if (!paper?.pdfPath) return NextResponse.json({ error: "PDF not found" }, { status: 404 });
   const bytes = await readFile(paper.pdfPath);
   return new NextResponse(bytes, {
