@@ -1,0 +1,137 @@
+import { render, screen, waitFor } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import type { PaperListItem, RuntimeModelSettings } from "@/lib/types";
+import { ReviewWorkspace } from "@/components/ReviewWorkspace";
+
+describe("ReviewWorkspace", () => {
+  it("groups right-side tools by model, AI help, corpus, and human record", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url === "/api/model-config") {
+          return Response.json({
+            config: {
+              activeMode: "mock",
+              reviewerSources: ["local", "online"],
+              local: { baseUrl: "http://localhost:8000/v1", selectedModel: "", configured: true },
+              online: {
+                baseUrlHost: "",
+                selectedModel: "",
+                configured: false,
+                credentialState: "missing",
+                configSource: "manual"
+              }
+            }
+          });
+        }
+        if (url === "/api/knowledge-base") {
+          return Response.json({
+            status: {
+              documentCount: 4,
+              chunkCount: 12,
+              paperDocumentCount: 3,
+              artifactDocumentCount: 0,
+              evidenceDocumentCount: 1,
+              embeddingModel: "portable-hash-v1",
+              updatedAt: null
+            }
+          });
+        }
+        if (url === "/api/papers/FT0001/screening") {
+          return Response.json({
+            screening: {
+              recordId: "FT0001",
+              decision: "maybe",
+              primaryExclusionReason: "",
+              eligibilityRationale: "Loaded eligibility note.",
+              typologyRelevanceNotes: "",
+              evaluationRelevanceNotes: "",
+              promptingPracticesNotes: "",
+              evidenceLocator: "Methods",
+              reviewStatus: "screened",
+              secondReviewReason: "",
+              reviewer: "YZ",
+              reviewDate: "2026-06-25"
+            }
+          });
+        }
+        if (url === "/api/papers/FT0001/extraction") {
+          return Response.json({
+            extraction: {
+              recordId: "FT0001",
+              methodTypology: "Loaded method typology.",
+              promptingPractices: "",
+              evaluationPractices: "",
+              synthesisNote: "",
+              evidenceLocator: "Methods",
+              updatedAt: "2026-06-25T00:00:00.000Z"
+            }
+          });
+        }
+        return Response.json({}, { status: 404 });
+      })
+    );
+
+    render(
+      <ReviewWorkspace
+        paper={paper()}
+        evidence={[]}
+        evidenceRoute={null}
+        modelSettings={settings()}
+        onModelSettingsChange={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(screen.getByText("4 documents")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Human decision: maybe")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByDisplayValue("Loaded method typology.")).toBeInTheDocument()
+    );
+
+    expect(screen.getByRole("region", { name: "Model" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "AI help" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Corpus" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Human record" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Model" })).toHaveClass("workspace-group");
+    expect(screen.getByRole("region", { name: "AI help" })).toHaveClass("workspace-group");
+    expect(screen.getByRole("heading", { name: "Ask" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Screening" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Extraction" })).toBeInTheDocument();
+    expect(screen.getByText("Model: mock")).toHaveClass("workspace-status-line");
+    expect(screen.getByText("Human decision: maybe").parentElement).toHaveClass(
+      "workspace-status-strip"
+    );
+  });
+});
+
+function paper(): PaperListItem {
+  return {
+    recordId: "FT0001",
+    title: "A test paper",
+    firstAuthor: "Author",
+    year: "2026",
+    sourceFilename: "paper.md",
+    sourcePath: "/paper.md",
+    decision: "",
+    reviewStatus: "needs_human_check",
+    hasMarkdown: true,
+    hasPdf: true,
+    markdownPath: "/paper.md",
+    pdfPath: "/paper.pdf",
+    methodItemCount: 0,
+    promptItemCount: 0,
+    evaluationItemCount: 0
+  };
+}
+
+function settings(): RuntimeModelSettings {
+  return {
+    mode: "mock",
+    localBaseUrl: "http://localhost:8000/v1",
+    localModel: "",
+    onlineBaseUrl: "",
+    onlineModel: "",
+    onlineConfigSource: "manual",
+    onlineApiKey: ""
+  };
+}

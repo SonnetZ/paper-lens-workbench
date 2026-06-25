@@ -1,0 +1,271 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  background: #ffffff;
+  color: #18181b;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background: #ffffff;
+  color: #18181b;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+.workspace-group {
+  position: relative;
+  background: rgba(255, 255, 255, 0.82);
+  padding: 4px 4px 4px 14px;
+  box-shadow: inset 2px 0 0 #e4002b;
+}
+
+.workspace-group-title {
+  margin: 0 0 12px;
+  color: #e4002b;
+  font-family: "Geist Mono", "SFMono-Regular", Consolas, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.workspace-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.workspace-artifact {
+  padding-top: 14px;
+  border-top: 1px solid rgba(228, 228, 231, 0.82);
+}
+
+.workspace-artifact:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.workspace-artifact-title {
+  margin: 0;
+  color: #18181b;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.workspace-artifact-body {
+  margin-top: 8px;
+  color: #71717a;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.workspace-status-line {
+  border-left: 2px solid #e4e4e7;
+  background: #f7f7f8;
+  padding: 7px 10px;
+  color: #71717a;
+  font-family: "Geist Mono", "SFMono-Regular", Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.workspace-status-strip {
+  display: grid;
+  gap: 4px;
+  border-left: 2px solid #e4e4e7;
+  background: #f7f7f8;
+  padding: 8px 10px;
+  color: #71717a;
+  font-family: "Geist Mono", "SFMono-Regular", Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.markdown-paper {
+  color: #18181b;
+  font-size: 16px;
+  line-height: 1.78;
+  scroll-padding: 32px;
+}
+
+.markdown-paper > * {
+  max-width: 82ch;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.markdown-paper h1,
+.markdown-paper h2,
+.markdown-paper h3,
+.markdown-paper h4 {
+  color: #18181b;
+  line-height: 1.22;
+  letter-spacing: 0;
+}
+
+.markdown-paper h1 {
+  max-width: 28ch;
+  margin-top: 0;
+  margin-bottom: 28px;
+  font-size: 34px;
+  font-weight: 700;
+}
+
+.markdown-paper h2 {
+  margin-top: 44px;
+  margin-bottom: 16px;
+  padding-top: 18px;
+  border-top: 1px solid #e4e4e7;
+  font-size: 23px;
+  font-weight: 700;
+}
+
+.markdown-paper h3 {
+  margin-top: 30px;
+  margin-bottom: 12px;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.markdown-paper h4 {
+  margin-top: 24px;
+  margin-bottom: 10px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.markdown-paper p,
+.markdown-paper ul,
+.markdown-paper ol,
+.markdown-paper blockquote,
+.markdown-paper pre,
+.markdown-paper table,
+.markdown-paper hr {
+  margin-top: 0;
+  margin-bottom: 18px;
+}
+
+.markdown-paper ul,
+.markdown-paper ol {
+  padding-left: 24px;
+}
+
+.markdown-paper li::marker {
+  color: #e4002b;
+}
+
+.markdown-paper li + li {
+  margin-top: 6px;
+}
+
+.markdown-paper blockquote {
+  border-left: 3px solid #e4002b;
+  padding: 6px 0 6px 16px;
+  color: #52525b;
+}
+
+.markdown-paper a {
+  color: #e4002b;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.markdown-paper a:hover {
+  color: #18181b;
+}
+
+.markdown-paper strong {
+  font-weight: 700;
+}
+
+.markdown-paper code {
+  padding: 2px 5px;
+  border: 1px solid #e4e4e7;
+  background: #f7f7f8;
+  font-family: "Geist Mono", "SFMono-Regular", Consolas, monospace;
+  font-size: 0.9em;
+}
+
+.markdown-paper pre {
+  max-width: min(100%, 96ch);
+  overflow: auto;
+  border: 1px solid #e4e4e7;
+  background: #f7f7f8;
+  padding: 14px;
+}
+
+.markdown-paper pre code {
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+
+.markdown-paper table {
+  display: block;
+  max-width: min(100%, 110ch);
+  overflow: auto;
+  border-collapse: collapse;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.markdown-paper th,
+.markdown-paper td {
+  min-width: 160px;
+  border: 1px solid #e4e4e7;
+  padding: 8px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.markdown-paper th {
+  background: #f7f7f8;
+  font-weight: 700;
+}
+
+.markdown-paper tbody tr:nth-child(even) {
+  background: #fafafa;
+}
+
+.markdown-paper img {
+  display: block;
+  max-width: min(100%, 980px);
+  height: auto;
+  margin: 24px auto;
+  border: 1px solid #e4e4e7;
+  background: #ffffff;
+}
+
+.markdown-paper hr {
+  border: 0;
+  border-top: 1px solid #e4e4e7;
+}
+
+@media (max-width: 640px) {
+  .markdown-paper {
+    font-size: 15px;
+  }
+
+  .markdown-paper h1 {
+    font-size: 28px;
+  }
+
+  .markdown-paper h2 {
+    font-size: 21px;
+  }
+}

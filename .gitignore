@@ -1,0 +1,17 @@
+.next/
+node_modules/
+coverage/
+dist/
+playwright-report/
+test-results/
+output/
+reader.sqlite
+*.sqlite
+*.sqlite3
+*.sqlite-wal
+*.sqlite-shm
+*.db
+.env
+.env.*
+!.env.example
+tsconfig.tsbuildinfo

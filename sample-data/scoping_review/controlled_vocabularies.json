@@ -1,0 +1,6 @@
+{
+  "decision": ["include", "exclude", "maybe"],
+  "review_status": ["unreviewed", "in_progress", "reviewed", "needs_second_review"],
+  "evidence_type": ["directly_reported", "methodologically_inferable", "reviewer_interpretation"],
+  "payload_scope": ["Selection", "Paper sections", "Full paper", "Corpus retrieval"]
+}
