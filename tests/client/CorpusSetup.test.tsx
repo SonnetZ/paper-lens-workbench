@@ -144,6 +144,80 @@ describe("CorpusSetup", () => {
       "/sample/papers_md"
     );
   });
+
+  it("adds a single selected paper file to the review queue", async () => {
+    const onCorpusApplied = vi.fn();
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      if (url === "/api/corpus-config" && !init) {
+        return Response.json({
+          config: {
+            reviewDataDir: "/sample/review_data",
+            paperMdDir: "/sample/papers_md",
+            paperPdfDir: "/sample/papers_pdf",
+            readerDbPath: "/sample/reader.sqlite",
+            readerExportDir: "/sample/exports"
+          },
+          validation: {
+            ok: true,
+            issues: [],
+            summary: {
+              screeningCsv: true,
+              controlledVocabularies: true,
+              markdownFileCount: 0,
+              pdfFileCount: 0,
+              screeningRowCount: 0,
+              addedScreeningRowCount: 0
+            }
+          }
+        });
+      }
+      if (url === "/api/corpus-config/source-file" && init?.method === "POST") {
+        return Response.json({
+          validation: {
+            ok: true,
+            issues: [],
+            summary: {
+              screeningCsv: true,
+              controlledVocabularies: true,
+              markdownFileCount: 0,
+              pdfFileCount: 1,
+              screeningRowCount: 1,
+              addedScreeningRowCount: 1
+            }
+          }
+        });
+      }
+      return Response.json({}, { status: 404 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<CorpusSetup onCorpusApplied={onCorpusApplied} />);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Corpus setup" }));
+    await userEvent.type(
+      screen.getByRole("textbox", { name: "Single paper file" }),
+      "/loose/Loose Paper.pdf"
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Add file" }));
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/corpus-config/source-file",
+        expect.objectContaining({
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            reviewDataDir: "/sample/review_data",
+            paperMdDir: "/sample/papers_md",
+            paperPdfDir: "/sample/papers_pdf",
+            filePath: "/loose/Loose Paper.pdf"
+          })
+        })
+      )
+    );
+    expect(await screen.findByText("Paper file added to review queue.")).toBeInTheDocument();
+    expect(onCorpusApplied).toHaveBeenCalledTimes(1);
+  });
 });
 
 async function replaceValue(label: string, value: string) {

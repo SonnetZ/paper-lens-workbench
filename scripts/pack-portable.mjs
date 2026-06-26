@@ -1,9 +1,8 @@
 #!/usr/bin/env node
-import { spawnSync } from "node:child_process";
-import fs from "node:fs";
 import path from "node:path";
 import {
   buildPortableBoxReport,
+  createPortableArchive,
   getArchiveName,
   listPortableFiles,
   parseFlags
@@ -29,15 +28,7 @@ if (!report.ok) {
 }
 
 if (!flags.dryRun) {
-  fs.mkdirSync(path.dirname(archivePath), { recursive: true });
-  const result = spawnSync(
-    "tar",
-    ["-czf", archivePath, "--transform", "s,^,paper-lens-workbench/,", ...includedFiles],
-    {
-      cwd: appRoot,
-      encoding: "utf8"
-    }
-  );
+  const result = createPortableArchive(appRoot, archivePath);
 
   if (result.status !== 0) {
     process.stderr.write(result.stderr || "tar failed without stderr output\n");

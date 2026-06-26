@@ -32,6 +32,8 @@ export function AppShell({ initialPapers }: Props) {
   });
   const [evidence, setEvidence] = useState<EvidencePacket[]>([]);
   const [evidenceRoute, setEvidenceRoute] = useState<EvidenceRouteEvent | null>(null);
+  const [paperQueueCollapsed, setPaperQueueCollapsed] = useState(false);
+  const [reviewWorkspaceCollapsed, setReviewWorkspaceCollapsed] = useState(false);
   const [evidenceStatus, setEvidenceStatus] = useState<"idle" | "loading" | "saving" | "error">(
     "idle"
   );
@@ -134,13 +136,44 @@ export function AppShell({ initialPapers }: Props) {
     }
   };
 
+  const deleteEvidence = async (evidenceId: string) => {
+    setEvidenceStatus("saving");
+    setEvidenceMessage("");
+    try {
+      const response = await fetch("/api/evidence", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ evidenceId })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "Unable to delete evidence");
+      setEvidence((items) => items.filter((item) => item.id !== evidenceId));
+      setEvidenceStatus("idle");
+    } catch (error) {
+      setEvidenceStatus("error");
+      setEvidenceMessage(error instanceof Error ? error.message : "Unable to delete evidence");
+    }
+  };
+
   return (
-    <main className="grid min-h-[100dvh] grid-cols-1 bg-white text-swiss-ink md:grid-cols-[300px_minmax(0,1fr)_360px]">
+    <main
+      className={`grid min-h-[100dvh] grid-cols-1 bg-white text-swiss-ink md:h-[100dvh] md:overflow-hidden ${
+        paperQueueCollapsed
+          ? reviewWorkspaceCollapsed
+            ? "md:grid-cols-[44px_minmax(0,1fr)_44px]"
+            : "md:grid-cols-[44px_minmax(0,1fr)_360px]"
+          : reviewWorkspaceCollapsed
+            ? "md:grid-cols-[300px_minmax(0,1fr)_44px]"
+            : "md:grid-cols-[300px_minmax(0,1fr)_360px]"
+      }`}
+    >
       <PaperQueue
         papers={papers}
         selectedRecordId={selectedRecordId}
+        collapsed={paperQueueCollapsed}
         onSelect={setSelectedRecordId}
         onCorpusApplied={reloadPapers}
+        onCollapsedChange={setPaperQueueCollapsed}
       />
       <section
         aria-label="Reading column"
@@ -148,6 +181,7 @@ export function AppShell({ initialPapers }: Props) {
       >
         <ReaderShell
           paper={selectedPaper}
+          modelSettings={modelSettings}
           onEvidence={saveEvidence}
         />
         <EvidenceTray
@@ -158,6 +192,7 @@ export function AppShell({ initialPapers }: Props) {
           onManualEvidence={saveEvidence}
           onRouteEvidence={routeEvidence}
           onPdfVerificationNote={savePdfVerificationNote}
+          onDeleteEvidence={deleteEvidence}
         />
       </section>
       <ReviewWorkspace
@@ -166,6 +201,8 @@ export function AppShell({ initialPapers }: Props) {
         evidenceRoute={evidenceRoute}
         modelSettings={modelSettings}
         onModelSettingsChange={setModelSettings}
+        collapsed={reviewWorkspaceCollapsed}
+        onCollapsedChange={setReviewWorkspaceCollapsed}
       />
     </main>
   );

@@ -4,6 +4,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import type { AppConfig } from "@/lib/types";
 import {
+  deleteEvidencePacket,
   listEvidencePackets,
   saveEvidencePacket,
   updateEvidencePdfVerificationNote
@@ -93,5 +94,24 @@ describe("evidence store", () => {
     expect(listEvidencePackets(config, "FT0001")[0].pdfVerificationNote).toBe(
       "Verified in PDF p. 9; table formatting checked."
     );
+  });
+
+  it("deletes an existing evidence packet", async () => {
+    const config = await makeConfig();
+    const saved = saveEvidencePacket(config, {
+      recordId: "FT0001",
+      sourceFormat: "pdf",
+      sourcePath: "/tmp/paper.pdf",
+      evidenceLocator: "PDF p.3",
+      quoteSnippet: "selected PDF evidence",
+      headingPath: null,
+      pageNumber: 3,
+      reviewerNote: "",
+      pdfVerificationNote: ""
+    });
+
+    expect(deleteEvidencePacket(config, saved.id)).toBe(saved.id);
+
+    expect(listEvidencePackets(config, "FT0001")).toEqual([]);
   });
 });

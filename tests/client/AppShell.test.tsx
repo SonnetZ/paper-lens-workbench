@@ -56,13 +56,69 @@ describe("AppShell evidence persistence", () => {
 
     render(<AppShell initialPapers={papers} />);
 
+    expect(screen.getByRole("main")).toHaveClass("md:h-[100dvh]");
+    expect(screen.getByRole("complementary", { name: "Paper queue" })).toHaveClass(
+      "md:h-[100dvh]"
+    );
     expect(screen.getByLabelText("Reading column")).toHaveClass("md:h-[100dvh]");
     expect(screen.getByLabelText("Reading column")).toHaveClass(
       "grid-rows-[minmax(0,1fr)_auto]"
     );
-    expect(screen.getByRole("complementary", { name: "Evidence tray" })).toHaveClass(
-      "md:max-h-[34dvh]"
+    expect(screen.getByRole("complementary", { name: "Review workspace" })).toHaveClass(
+      "md:h-[100dvh]"
     );
+    expect(screen.getByRole("complementary", { name: "Evidence tray" })).toHaveClass(
+      "evidence-tray-expanded"
+    );
+  });
+
+  it("can collapse and expand the paper list", async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url === "/api/evidence?recordId=FT0001") {
+        return Response.json({ evidence: [] });
+      }
+      if (url === "/api/papers/FT0001/screening") {
+        return Response.json({ screening: screeningRow() });
+      }
+      if (url === "/api/papers/FT0001/extraction") {
+        return Response.json({ extraction: extractionArtifact() });
+      }
+      return Response.json({ content: "" });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<AppShell initialPapers={papers} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Collapse paper list" }));
+    expect(screen.getByRole("button", { name: "Expand paper list" })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Expand paper list" }));
+    expect(screen.getByRole("button", { name: "Collapse paper list" })).toBeInTheDocument();
+  });
+
+  it("can collapse and expand the review workspace", async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url === "/api/evidence?recordId=FT0001") {
+        return Response.json({ evidence: [] });
+      }
+      if (url === "/api/papers/FT0001/screening") {
+        return Response.json({ screening: screeningRow() });
+      }
+      if (url === "/api/papers/FT0001/extraction") {
+        return Response.json({ extraction: extractionArtifact() });
+      }
+      return Response.json({ content: "" });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<AppShell initialPapers={papers} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Collapse review workspace" }));
+    expect(screen.getByRole("button", { name: "Expand review workspace" })).toBeInTheDocument();
+    expect(screen.getByRole("main")).toHaveClass("md:grid-cols-[300px_minmax(0,1fr)_44px]");
+
+    await userEvent.click(screen.getByRole("button", { name: "Expand review workspace" }));
+    expect(screen.getByRole("button", { name: "Collapse review workspace" })).toBeInTheDocument();
   });
 
   it("loads persisted evidence for the selected paper", async () => {

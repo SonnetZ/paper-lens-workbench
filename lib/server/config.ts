@@ -35,6 +35,7 @@ export function resolveAppConfig(
       env.ONLINE_LLM_CONFIG_SOURCE === "env" || env.ONLINE_LLM_CONFIG_SOURCE === "cc_switch"
         ? env.ONLINE_LLM_CONFIG_SOURCE
         : "manual",
+    translationOpusBaseUrl: env.TRANSLATION_OPUS_BASE_URL?.trim() || "http://127.0.0.1:8010",
     llmMaxInputChars: Number.parseInt(env.LLM_MAX_INPUT_CHARS ?? "24000", 10)
   };
 }

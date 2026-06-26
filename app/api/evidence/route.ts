@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { resolveAppConfig } from "@/lib/server/config";
 import {
+  deleteEvidencePacket,
   listEvidencePackets,
   saveEvidencePacket,
   updateEvidencePdfVerificationNote
@@ -37,6 +38,19 @@ export async function PATCH(request: Request) {
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Unable to update evidence" },
+      { status: 400 }
+    );
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const input = await request.json();
+    const evidenceId = deleteEvidencePacket(resolveAppConfig(), String(input.evidenceId ?? ""));
+    return NextResponse.json({ evidenceId });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Unable to delete evidence" },
       { status: 400 }
     );
   }

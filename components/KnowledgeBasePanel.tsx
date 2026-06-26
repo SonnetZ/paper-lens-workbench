@@ -1,5 +1,6 @@
 "use client";
 
+import { Database, MagnifyingGlass, Plus } from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
 import type { KnowledgeBaseStatus, KnowledgeSearchResult, PaperListItem } from "@/lib/types";
 
@@ -143,27 +144,33 @@ export function KnowledgeBasePanel({ paper }: { paper: PaperListItem | null }) {
       <div className="grid grid-cols-1 gap-2">
         <button
           type="button"
+          aria-label="Build corpus index"
           onClick={buildCorpus}
           disabled={state === "indexing"}
-          className="border border-swiss-rule px-2 py-1.5 text-xs transition hover:border-swiss-red disabled:text-swiss-muted active:translate-y-px"
+          className="workbench-button"
         >
-          {state === "indexing" ? "Indexing knowledge" : "Build corpus index"}
+          <Database aria-hidden="true" size={14} weight="bold" />
+          {state === "indexing" ? "Indexing" : "Build index"}
         </button>
         <button
           type="button"
+          aria-label="Add current paper"
           onClick={() => addCurrent(false)}
           disabled={!paper || state === "indexing"}
-          className="border border-swiss-rule px-2 py-1.5 text-xs transition hover:border-swiss-red disabled:text-swiss-muted active:translate-y-px"
+          className="workbench-button"
         >
-          Add current paper
+          <Plus aria-hidden="true" size={14} weight="bold" />
+          Add paper
         </button>
         <button
           type="button"
+          aria-label="Add review artifacts"
           onClick={() => addCurrent(true)}
           disabled={!paper || state === "indexing"}
-          className="border border-swiss-rule px-2 py-1.5 text-xs transition hover:border-swiss-red disabled:text-swiss-muted active:translate-y-px"
+          className="workbench-button"
         >
-          Add review artifacts
+          <Plus aria-hidden="true" size={14} weight="bold" />
+          Add artifacts
         </button>
       </div>
       <div className="grid gap-1.5 border-t border-swiss-rule pt-3">
@@ -178,11 +185,13 @@ export function KnowledgeBasePanel({ paper }: { paper: PaperListItem | null }) {
         />
         <button
           type="button"
+          aria-label="Search knowledge"
           onClick={search}
           disabled={!query.trim() || state === "searching"}
-          className="border border-swiss-rule px-2 py-1.5 text-xs transition hover:border-swiss-red disabled:text-swiss-muted active:translate-y-px"
+          className="workbench-button"
         >
-          {state === "searching" ? "Searching knowledge" : "Search knowledge"}
+          <MagnifyingGlass aria-hidden="true" size={14} weight="bold" />
+          {state === "searching" ? "Searching" : "Search"}
         </button>
       </div>
       {message ? (

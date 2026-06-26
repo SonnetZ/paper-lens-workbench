@@ -43,6 +43,7 @@ export interface EffectiveCorpusConfig extends CorpusPathConfig {
 
 export interface ScreeningSyncResult {
   markdownFileCount: number;
+  pdfFileCount: number;
   existingRowCount: number;
   addedRowCount: number;
   totalRowCount: number;
@@ -101,8 +102,8 @@ export async function validateCorpusConfig(
   if (!summary.screeningCsv) {
     issues.push("Review data folder must contain full_text_screening.csv.");
   }
-  if (summary.markdownFileCount === 0) {
-    issues.push("Markdown papers folder does not contain any .md files.");
+  if (summary.markdownFileCount + summary.pdfFileCount === 0) {
+    issues.push("Paper folders do not contain any .md or .pdf files.");
   }
 
   return {
@@ -116,29 +117,32 @@ export async function syncScreeningRowsForMarkdownPapers(
   input: CorpusPathConfig
 ): Promise<ScreeningSyncResult> {
   const normalized = normalizeCorpusConfig(input);
-  const markdownFiles = await listMarkdownFilenames(normalized.paperMdDir);
+  const sourceGroups = await listPaperSourceGroups(normalized.paperMdDir, normalized.paperPdfDir);
   const pathname = path.join(normalized.reviewDataDir, screeningFilename);
   const table = await readCsvTableOrDefault(pathname, screeningColumns);
   const columns = withRequiredColumns(table.columns);
   const rows = table.rows;
-  const existingKeys = new Set(rows.flatMap(rowMarkdownKeys));
+  const existingKeys = new Set(rows.flatMap(rowPaperKeys));
   const usedRecordIds = new Set(rows.map((row) => row.record_id).filter(Boolean));
   let nextRecordNumber = nextFtRecordNumber(usedRecordIds);
   let addedRowCount = 0;
 
-  for (const filename of markdownFiles) {
-    const key = markdownKey(filename);
+  for (const group of sourceGroups) {
+    const key = group.key;
     if (existingKeys.has(key)) continue;
 
     const recordId = nextAvailableRecordId(usedRecordIds, nextRecordNumber);
     nextRecordNumber = Number.parseInt(recordId.replace(/^FT/i, ""), 10) + 1;
     usedRecordIds.add(recordId);
     existingKeys.add(key);
+    const filename = group.markdownFilename ?? group.pdfFilename ?? "";
     rows.push(
       makeBaseScreeningRow(
         recordId,
         filename,
-        await readMarkdownTitle(path.join(normalized.paperMdDir, filename))
+        group.markdownFilename
+          ? await readMarkdownTitle(path.join(normalized.paperMdDir, group.markdownFilename))
+          : path.basename(filename, path.extname(filename))
       )
     );
     addedRowCount += 1;
@@ -149,9 +153,62 @@ export async function syncScreeningRowsForMarkdownPapers(
   }
 
   return {
-    markdownFileCount: markdownFiles.length,
+    markdownFileCount: sourceGroups.filter((group) => group.markdownFilename).length,
+    pdfFileCount: sourceGroups.filter((group) => group.pdfFilename).length,
     existingRowCount: rows.length - addedRowCount,
     addedRowCount,
+    totalRowCount: rows.length
+  };
+}
+
+export async function addPaperSourceFileToScreening(
+  input: CorpusPathConfig,
+  filePath: string
+): Promise<ScreeningSyncResult> {
+  const normalized = normalizeCorpusConfig(input);
+  const pathname = path.resolve(filePath.trim());
+  const file = await stat(pathname);
+  if (!file.isFile()) throw new Error("Selected paper source is not a file.");
+  const extension = path.extname(pathname).toLowerCase();
+  if (extension !== ".md" && extension !== ".pdf") {
+    throw new Error("Selected paper source must be a .md or .pdf file.");
+  }
+
+  const table = await readCsvTableOrDefault(path.join(normalized.reviewDataDir, screeningFilename), screeningColumns);
+  const columns = withRequiredColumns(table.columns);
+  const rows = table.rows;
+  const existingKeys = new Set(rows.flatMap(rowPaperKeys));
+  const sourceKeyValue = sourceKey(pathname);
+  const markdownFileCount = await countFiles(normalized.paperMdDir, ".md");
+  const pdfFileCount = await countFiles(normalized.paperPdfDir, ".pdf");
+  if (existingKeys.has(sourceKeyValue)) {
+    return {
+      markdownFileCount,
+      pdfFileCount,
+      existingRowCount: rows.length,
+      addedRowCount: 0,
+      totalRowCount: rows.length
+    };
+  }
+
+  const usedRecordIds = new Set(rows.map((row) => row.record_id).filter(Boolean));
+  const recordId = nextAvailableRecordId(usedRecordIds, nextFtRecordNumber(usedRecordIds));
+  const filename = path.basename(pathname);
+  rows.push(
+    makeBaseScreeningRow(
+      recordId,
+      filename,
+      extension === ".md" ? await readMarkdownTitle(pathname) : path.basename(filename, extension),
+      pathname
+    )
+  );
+  await writeCsvTableAtomic(path.join(normalized.reviewDataDir, screeningFilename), columns, rows);
+
+  return {
+    markdownFileCount,
+    pdfFileCount,
+    existingRowCount: rows.length - 1,
+    addedRowCount: 1,
     totalRowCount: rows.length
   };
 }
@@ -245,12 +302,32 @@ async function countFiles(dir: string, extension: string): Promise<number> {
   }
 }
 
-async function listMarkdownFilenames(dir: string): Promise<string[]> {
-  const entries = await readdir(dir, { withFileTypes: true });
+async function listFilenames(dir: string, extension: ".md" | ".pdf"): Promise<string[]> {
+  const entries = await readdir(dir, { withFileTypes: true }).catch(() => []);
   return entries
-    .filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith(".md"))
-    .map((entry) => entry.name)
-    .sort((left, right) => left.localeCompare(right, undefined, { sensitivity: "base" }));
+    .filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith(extension))
+    .map((entry) => entry.name);
+}
+
+async function listPaperSourceGroups(mdDir: string, pdfDir: string): Promise<
+  Array<{ key: string; markdownFilename?: string; pdfFilename?: string }>
+> {
+  const groups = new Map<string, { key: string; markdownFilename?: string; pdfFilename?: string }>();
+  for (const filename of await listFilenames(mdDir, ".md")) {
+    const key = sourceKey(filename);
+    groups.set(key, { ...groups.get(key), key, markdownFilename: filename });
+  }
+  for (const filename of await listFilenames(pdfDir, ".pdf")) {
+    const key = sourceKey(filename);
+    groups.set(key, { ...groups.get(key), key, pdfFilename: filename });
+  }
+  return [...groups.values()].sort((left, right) =>
+    (left.markdownFilename ?? left.pdfFilename ?? "").localeCompare(
+      right.markdownFilename ?? right.pdfFilename ?? "",
+      undefined,
+      { sensitivity: "base" }
+    )
+  );
 }
 
 function withRequiredColumns(columns: string[]): string[] {
@@ -261,14 +338,25 @@ function withRequiredColumns(columns: string[]): string[] {
   return next;
 }
 
-function rowMarkdownKeys(row: Record<string, string>): string[] {
-  return [row.source_filename, row.source_path, row.record_id ? `${row.record_id}.md` : ""]
+function rowPaperKeys(row: Record<string, string>): string[] {
+  return [
+    row.source_filename,
+    row.source_path,
+    row.record_id ? `${row.record_id}.md` : "",
+    row.record_id ? `${row.record_id}.pdf` : ""
+  ]
     .filter(Boolean)
-    .map(markdownKey);
+    .map(sourceKey);
 }
 
-function markdownKey(value: string): string {
-  return path.basename(value).normalize("NFKC").toLowerCase();
+function sourceKey(value: string): string {
+  return path
+    .basename(value, path.extname(value))
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/[\s_‐‑‒–—-]+/g, " ")
+    .replace(/[^\p{L}\p{N} ]/gu, "")
+    .trim();
 }
 
 function nextFtRecordNumber(recordIds: Set<string>): number {
@@ -295,7 +383,8 @@ function formatFtRecordId(value: number): string {
 function makeBaseScreeningRow(
   recordId: string,
   filename: string,
-  title: string
+  title: string,
+  sourcePath = filename
 ): Record<string, string> {
   return {
     record_id: recordId,
@@ -303,7 +392,7 @@ function makeBaseScreeningRow(
     first_author: "",
     year: "",
     source_filename: filename,
-    source_path: filename,
+    source_path: sourcePath,
     decision: "",
     primary_exclusion_reason: "",
     eligibility_rationale: "",

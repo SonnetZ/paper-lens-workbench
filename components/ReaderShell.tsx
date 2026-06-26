@@ -1,19 +1,29 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { EvidenceInput, PaperListItem } from "@/lib/types";
+import type { EvidenceInput, PaperListItem, RuntimeModelSettings } from "@/lib/types";
 import { MarkdownReader } from "@/components/MarkdownReader";
 import { PdfReader } from "@/components/PdfReader";
 
 interface Props {
   paper: PaperListItem | null;
+  modelSettings?: RuntimeModelSettings;
   onEvidence: (input: EvidenceInput) => void;
 }
 
-export function ReaderShell({ paper, onEvidence }: Props) {
+type ReaderMode = "Markdown" | "PDF";
+
+export function ReaderShell({ paper, modelSettings, onEvidence }: Props) {
+  const paperRecordId = paper?.recordId ?? "";
+  const hasMarkdown = Boolean(paper?.hasMarkdown);
+  const hasPdf = Boolean(paper?.hasPdf);
   const [markdown, setMarkdown] = useState<string>("");
   const [error, setError] = useState<string>("");
-  const [mode, setMode] = useState<"Markdown" | "PDF">("Markdown");
+  const [mode, setMode] = useState<ReaderMode>(() => preferredReaderMode(hasMarkdown, hasPdf));
+
+  useEffect(() => {
+    setMode(preferredReaderMode(hasMarkdown, hasPdf));
+  }, [paperRecordId, hasMarkdown, hasPdf]);
 
   useEffect(() => {
     setMarkdown("");
@@ -50,10 +60,9 @@ export function ReaderShell({ paper, onEvidence }: Props) {
             <button
               key={item}
               type="button"
+              aria-pressed={mode === item}
               onClick={() => setMode(item)}
-              className={`border px-2 py-1 transition active:translate-y-px ${
-                mode === item ? "border-swiss-red text-swiss-red" : "border-swiss-rule"
-              }`}
+              className="workbench-tab-button"
             >
               {item}
             </button>
@@ -66,6 +75,7 @@ export function ReaderShell({ paper, onEvidence }: Props) {
             recordId={paper.recordId}
             pdfUrl={`/api/papers/${paper.recordId}/pdf`}
             sourcePath={paper.pdfPath}
+            modelSettings={modelSettings}
             onEvidence={onEvidence}
           />
         ) : (
@@ -78,6 +88,7 @@ export function ReaderShell({ paper, onEvidence }: Props) {
           recordId={paper.recordId}
           sourcePath={paper.markdownPath ?? paper.sourcePath}
           markdown={markdown}
+          modelSettings={modelSettings}
           onEvidence={onEvidence}
         />
       ) : (
@@ -85,4 +96,8 @@ export function ReaderShell({ paper, onEvidence }: Props) {
       )}
     </section>
   );
+}
+
+function preferredReaderMode(hasMarkdown: boolean, hasPdf: boolean): ReaderMode {
+  return hasPdf && !hasMarkdown ? "PDF" : "Markdown";
 }

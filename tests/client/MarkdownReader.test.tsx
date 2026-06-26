@@ -53,29 +53,17 @@ describe("MarkdownReader", () => {
     );
   });
 
-  it("can create evidence from selected text fallback button", async () => {
-    const onEvidence = vi.fn();
-
+  it("does not render a redundant markdown toolbar", () => {
     render(
       <MarkdownReader
         recordId="FT0001"
         sourcePath="/paper.md"
         markdown={"# Title\n\n## Methods\n\nHuman reviewers revised the codebook."}
-        onEvidence={onEvidence}
+        onEvidence={vi.fn()}
       />
     );
 
-    await userEvent.click(screen.getByRole("button", { name: "Save selection" }));
-
-    expect(onEvidence).toHaveBeenCalledWith(
-      expect.objectContaining({
-        recordId: "FT0001",
-        sourceFormat: "markdown",
-        sourcePath: "/paper.md",
-        evidenceLocator: "Methods",
-        quoteSnippet: "Human reviewers revised the codebook."
-      })
-    );
+    expect(screen.queryByRole("button", { name: "Save selection" })).not.toBeInTheDocument();
   });
 
   it("uses the selected paragraph heading as the evidence locator", async () => {
@@ -108,7 +96,8 @@ describe("MarkdownReader", () => {
       toString: () => "model-suggested codes"
     } as Selection);
 
-    await userEvent.click(screen.getByRole("button", { name: "Save selection" }));
+    fireEvent.mouseUp(screen.getByRole("article", { name: "Rendered markdown paper" }));
+    await userEvent.click(screen.getByRole("button", { name: "Save evidence" }));
 
     expect(onEvidence).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -223,5 +212,134 @@ describe("MarkdownReader", () => {
         quoteSnippet: "model-suggested codes"
       })
     );
+  });
+
+  it("translates selected markdown text with the default OPUS-MT provider", async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
+      Response.json({ translation: "研究人员评估了该工具。", provider: "opus" })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <MarkdownReader
+        recordId="FT0001"
+        sourcePath="/paper.md"
+        markdown={"# Title\n\n## Methods\n\nThe researchers evaluated the tool."}
+        onEvidence={vi.fn()}
+      />
+    );
+
+    const selectedParagraph = screen.getByText("The researchers evaluated the tool.");
+    vi.spyOn(
+      screen.getByRole("article", { name: "Rendered markdown paper" }),
+      "getBoundingClientRect"
+    ).mockReturnValue({
+      left: 80,
+      top: 100,
+      width: 720,
+      height: 540,
+      right: 800,
+      bottom: 640,
+      x: 80,
+      y: 100,
+      toJSON: () => ({})
+    } as DOMRect);
+    vi.spyOn(window, "getSelection").mockReturnValue({
+      anchorNode: selectedParagraph.firstChild,
+      rangeCount: 1,
+      getRangeAt: () => ({
+        getBoundingClientRect: () => ({ left: 120, top: 160, width: 90, height: 18 })
+      }),
+      toString: () => "The researchers evaluated the tool."
+    } as unknown as Selection);
+
+    fireEvent.mouseUp(screen.getByRole("article", { name: "Rendered markdown paper" }));
+    await userEvent.click(screen.getByRole("button", { name: "Translate selection" }));
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/translate",
+      expect.objectContaining({
+        method: "POST",
+        headers: { "Content-Type": "application/json" }
+      })
+    );
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toEqual(
+      expect.objectContaining({
+        text: "The researchers evaluated the tool.",
+        provider: "opus"
+      })
+    );
+    expect(await screen.findByText("研究人员评估了该工具。")).toBeInTheDocument();
+  });
+
+  it("copies selected markdown text from the selection assistant", async () => {
+    const writeText = vi.spyOn(navigator.clipboard, "writeText");
+
+    render(
+      <MarkdownReader
+        recordId="FT0001"
+        sourcePath="/paper.md"
+        markdown={"# Title\n\n## Methods\n\nThe researchers evaluated the tool."}
+        onEvidence={vi.fn()}
+      />
+    );
+
+    const selectedParagraph = screen.getByText("The researchers evaluated the tool.");
+    vi.spyOn(window, "getSelection").mockReturnValue({
+      anchorNode: selectedParagraph.firstChild,
+      rangeCount: 1,
+      getRangeAt: () => ({
+        getBoundingClientRect: () => ({ left: 120, top: 160, width: 90, height: 18 })
+      }),
+      toString: () => "researchers evaluated"
+    } as unknown as Selection);
+
+    fireEvent.mouseUp(screen.getByRole("article", { name: "Rendered markdown paper" }));
+    await userEvent.click(screen.getByRole("button", { name: "Copy selected text" }));
+
+    expect(writeText).toHaveBeenCalledWith("researchers evaluated");
+  });
+
+  it("anchors the selection popup to the selected text inside a scrolled markdown page", () => {
+    render(
+      <MarkdownReader
+        recordId="FT0001"
+        sourcePath="/paper.md"
+        markdown={"# Title\n\n## Methods\n\nThe researchers evaluated the tool."}
+        onEvidence={vi.fn()}
+      />
+    );
+
+    const article = screen.getByRole("article", { name: "Rendered markdown paper" });
+    Object.defineProperty(article, "clientWidth", { configurable: true, value: 720 });
+    Object.defineProperty(article, "clientHeight", { configurable: true, value: 540 });
+    Object.defineProperty(article, "scrollTop", { configurable: true, value: 900 });
+    Object.defineProperty(article, "scrollLeft", { configurable: true, value: 0 });
+    vi.spyOn(article, "getBoundingClientRect").mockReturnValue({
+      left: 80,
+      top: 100,
+      width: 720,
+      height: 540,
+      right: 800,
+      bottom: 640,
+      x: 80,
+      y: 100,
+      toJSON: () => ({})
+    } as DOMRect);
+    const selectedParagraph = screen.getByText("The researchers evaluated the tool.");
+    vi.spyOn(window, "getSelection").mockReturnValue({
+      anchorNode: selectedParagraph.firstChild,
+      rangeCount: 1,
+      getRangeAt: () => ({
+        getBoundingClientRect: () => ({ left: 160, top: 180, width: 90, height: 18 })
+      }),
+      toString: () => "researchers evaluated"
+    } as unknown as Selection);
+
+    fireEvent.mouseUp(article);
+
+    const dialog = screen.getByRole("dialog", { name: "Ask about selected text" });
+    expect(article).toContainElement(dialog);
+    expect(dialog).toHaveStyle({ left: "125px", top: "1008px" });
   });
 });

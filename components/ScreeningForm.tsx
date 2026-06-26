@@ -1,5 +1,6 @@
 "use client";
 
+import { FloppyDisk, LinkSimple } from "@phosphor-icons/react";
 import { useEffect, useMemo, useState } from "react";
 import type {
   EvidencePacket,
@@ -9,6 +10,7 @@ import type {
   ScreeningRow,
   ScreeningUpdateInput
 } from "@/lib/types";
+import { InfoHint } from "@/components/InfoHint";
 
 const emptyScreening: ScreeningRow = {
   recordId: "",
@@ -158,12 +160,21 @@ export function ScreeningForm({
 
   return (
     <form className="grid gap-3" onSubmit={(event) => event.preventDefault()}>
-      <div className="workspace-status-strip">
-        <p>Human decision: {form.decision || "unspecified"}</p>
-        <p>Status: {form.reviewStatus || "unreviewed"}</p>
-        <p>Reviewer: {form.reviewer || "not assigned"}</p>
+      <div className="workspace-status-strip review-meta-grid">
+        <p className="review-meta-chip">
+          <span className="review-meta-label">Decision</span>
+          <strong className="review-meta-value">{form.decision || "unspecified"}</strong>
+        </p>
+        <p className="review-meta-chip">
+          <span className="review-meta-label">Status</span>
+          <strong className="review-meta-value">{form.reviewStatus || "unreviewed"}</strong>
+        </p>
+        <p className="review-meta-chip">
+          <span className="review-meta-label">Reviewer</span>
+          <strong className="review-meta-value">{form.reviewer || "not assigned"}</strong>
+        </p>
         {form.secondReviewReason ? (
-          <p className="text-swiss-red">
+          <p className="review-meta-chip review-meta-alert">
             {form.secondReviewReason}
           </p>
         ) : null}
@@ -198,23 +209,30 @@ export function ScreeningForm({
       />
 
       <div className="grid gap-1.5">
-        <label htmlFor="evidence-locator" className="text-xs font-semibold">
-          Screening evidence locator
-        </label>
+        <div className="flex items-center gap-1">
+          <label htmlFor="evidence-locator" className="text-xs font-semibold">
+            Screening evidence locator (MD/PDF)
+          </label>
+          <InfoHint label="Use a heading, PDF page, or tray evidence locator that lets you find the cited text again." />
+        </div>
         <div className="grid grid-cols-[1fr_auto] gap-2">
           <input
             id="evidence-locator"
+            aria-label="Screening evidence locator"
             value={form.evidenceLocator}
             onChange={(event) => update({ evidenceLocator: event.target.value })}
             className="min-w-0 border border-swiss-rule px-2 py-1.5 text-sm"
           />
           <button
             type="button"
+            aria-label="Attach latest evidence"
             onClick={attachLatestEvidence}
             disabled={!latestEvidence}
-            className="border border-swiss-rule px-2 py-1.5 text-xs transition hover:border-swiss-red disabled:text-swiss-muted active:translate-y-px"
+            className="workbench-button"
+            title="Insert the newest evidence packet from the tray."
           >
-            Attach latest evidence
+            <LinkSimple aria-hidden="true" size={14} weight="bold" />
+            Attach latest
           </button>
         </div>
       </div>
@@ -279,11 +297,13 @@ export function ScreeningForm({
 
       <button
         type="button"
+        aria-label="Save screening"
         onClick={save}
         disabled={status === "saving" || status === "loading"}
-        className="border border-swiss-red bg-swiss-red px-3 py-2 text-sm font-semibold text-white transition disabled:border-swiss-rule disabled:bg-swiss-wash disabled:text-swiss-muted active:translate-y-px"
+        className="workbench-button workbench-button-primary"
       >
-        {status === "saving" ? "Saving screening" : "Save screening"}
+        <FloppyDisk aria-hidden="true" size={15} weight="bold" />
+        {status === "saving" ? "Saving" : "Save"}
       </button>
       {message ? (
         <p

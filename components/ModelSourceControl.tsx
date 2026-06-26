@@ -1,6 +1,5 @@
 "use client";
 
-import { CaretDown } from "@phosphor-icons/react";
 import { useEffect, useMemo, useState } from "react";
 import type { ModelSource, RuntimeModelSettings } from "@/lib/types";
 
@@ -90,6 +89,7 @@ export function ModelSourceControl({
 
   const selectSource = (source: ModelSource) => {
     update({ mode: source });
+    setExpanded(true);
   };
 
   const updateLocalPort = (port: string) => {
@@ -173,40 +173,26 @@ export function ModelSourceControl({
       setMessage(selectedModel ? `Connected: ${selectedModel}` : "Connected");
     } catch (error) {
       setStatus("error");
-      setMessage(error instanceof Error ? error.message : "Online model unavailable");
+      const detail = error instanceof Error ? error.message : "Online model unavailable";
+      const keyStatus = config?.online.credentialState;
+      setMessage(keyStatus ? `Server key status: ${keyStatus}. ${detail}` : detail);
     }
   };
 
   return (
     <section>
-      <div role="group" aria-label="Model source" className="grid grid-cols-[1fr_1fr_auto] gap-1">
+      <div role="group" aria-label="Model source" className="grid grid-cols-2 gap-1">
         {reviewerSources.map((source) => (
           <button
             key={source.value}
             type="button"
+            aria-pressed={activeMode === source.value}
             onClick={() => selectSource(source.value)}
-            className={`border px-3 py-2 text-sm transition active:translate-y-px ${
-              activeMode === source.value
-                ? "border-swiss-red bg-swiss-wash text-swiss-red"
-                : "border-swiss-rule bg-white"
-            }`}
+            className="workbench-tab-button"
           >
             {source.label}
           </button>
         ))}
-        <button
-          type="button"
-          onClick={() => setExpanded((current) => !current)}
-          aria-label={expanded ? "Collapse model settings" : "Expand model settings"}
-          aria-expanded={expanded}
-          className="grid size-9 place-items-center border border-swiss-rule bg-white text-swiss-muted transition hover:border-swiss-red hover:text-swiss-red active:translate-y-px"
-        >
-          <CaretDown
-            aria-hidden="true"
-            weight="bold"
-            className={`size-3.5 transition-transform ${expanded ? "rotate-180" : ""}`}
-          />
-        </button>
       </div>
       {expanded && activeMode === "local" ? (
         <div className="mt-3 grid gap-2 border-t border-swiss-rule pt-3">
@@ -236,11 +222,12 @@ export function ModelSourceControl({
           </div>
           <button
             type="button"
+            aria-label="Test local connection"
             onClick={testLocalConnection}
             disabled={status === "testing"}
-            className="border border-swiss-rule px-2 py-1.5 text-xs transition hover:border-swiss-red disabled:text-swiss-muted active:translate-y-px"
+            className="workbench-button"
           >
-            {status === "testing" ? "Testing local connection" : "Test local connection"}
+            {status === "testing" ? "Testing" : "Test"}
           </button>
         </div>
       ) : null}
@@ -308,11 +295,12 @@ export function ModelSourceControl({
           ) : null}
           <button
             type="button"
+            aria-label="Test online connection"
             onClick={testOnlineConnection}
             disabled={status === "testing"}
-            className="border border-swiss-rule px-2 py-1.5 text-xs transition hover:border-swiss-red disabled:text-swiss-muted active:translate-y-px"
+            className="workbench-button"
           >
-            {status === "testing" ? "Testing online connection" : "Test online connection"}
+            {status === "testing" ? "Testing" : "Test"}
           </button>
           <p className="border-t border-swiss-rule pt-2 text-xs text-swiss-muted">
             Server key status: {config?.online.credentialState ?? "unknown"}

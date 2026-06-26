@@ -3,6 +3,14 @@ import { describe, expect, it, vi } from "vitest";
 import type { PaperListItem } from "@/lib/types";
 import { ReaderShell } from "@/components/ReaderShell";
 
+vi.mock("@/components/MarkdownReader", () => ({
+  MarkdownReader: () => <div>Mock Markdown Reader</div>
+}));
+
+vi.mock("@/components/PdfReader", () => ({
+  PdfReader: () => <div>Mock PDF Reader</div>
+}));
+
 const paper: PaperListItem = {
   recordId: "FT0001",
   title: "Sample AI-assisted interview analysis",
@@ -28,5 +36,23 @@ describe("ReaderShell", () => {
     expect(screen.getByRole("button", { name: "Markdown" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "PDF" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Split" })).not.toBeInTheDocument();
+  });
+
+  it("opens a PDF-only paper in the PDF reader by default", () => {
+    render(
+      <ReaderShell
+        paper={{
+          ...paper,
+          sourceFilename: "standalone.pdf",
+          sourcePath: "/papers/standalone.pdf",
+          hasPdf: true,
+          pdfPath: "/papers/standalone.pdf"
+        }}
+        onEvidence={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText("Mock PDF Reader")).toBeInTheDocument();
+    expect(screen.queryByText("Markdown source not loaded.")).not.toBeInTheDocument();
   });
 });

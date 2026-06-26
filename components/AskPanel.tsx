@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { PaperPlaneTilt } from "@phosphor-icons/react";
 import type {
   EvidencePacket,
   PaperListItem,
@@ -8,6 +9,7 @@ import type {
   RuntimeModelSettings,
   ScopedAskAnswer
 } from "@/lib/types";
+import { InfoHint } from "@/components/InfoHint";
 
 export function AskPanel({
   paper,
@@ -34,8 +36,8 @@ export function AskPanel({
   );
   const scopeDescription =
     payloadScope === "Corpus retrieval"
-      ? "Searches the local review knowledge base, then sends retrieved chunks."
-      : "Uses evidence packets attached to this paper.";
+      ? "Search the local knowledge base and answer from retrieved chunks."
+      : "Answer only from evidence packets attached in the tray.";
 
   const ask = async () => {
     if (!paper || !canAsk) return;
@@ -68,27 +70,32 @@ export function AskPanel({
   return (
     <section className="grid gap-3">
       <div className="grid gap-1.5">
-        <label htmlFor="payload-scope" className="text-xs font-semibold">
-          Payload scope
-        </label>
+        <div className="flex items-center gap-1">
+          <label htmlFor="payload-scope" className="text-xs font-semibold">
+            Payload scope
+          </label>
+          <InfoHint label={scopeDescription} />
+        </div>
         <select
           id="payload-scope"
           value={payloadScope}
           onChange={(event) => setPayloadScope(event.target.value as PayloadScope)}
           className="border border-swiss-rule bg-white px-2 py-1.5 text-sm"
         >
-          <option value="Selection">Selection</option>
-          <option value="Corpus retrieval">Corpus retrieval</option>
+          <option value="Selection">Attached evidence</option>
+          <option value="Corpus retrieval">Knowledge search</option>
         </select>
-        <p className="text-xs text-swiss-muted">{scopeDescription}</p>
       </div>
       <p className="workspace-status-line">
         Model: {modelLabel(modelSettings)}
       </p>
       <div className="grid gap-1.5">
-        <label htmlFor="scoped-question" className="text-xs font-semibold">
-          Question
-        </label>
+        <div className="flex items-center gap-1">
+          <label htmlFor="scoped-question" className="text-xs font-semibold">
+            Question
+          </label>
+          <InfoHint label="Ask a narrow reading question. For best results, attach a selected paragraph or search the knowledge base." />
+        </div>
         <textarea
           id="scoped-question"
           value={question}
@@ -102,17 +109,13 @@ export function AskPanel({
         </span>
         <button
           type="button"
+          aria-label={payloadScope === "Corpus retrieval" ? "Ask with corpus retrieval" : "Ask with evidence"}
           onClick={ask}
           disabled={!canAsk || status === "asking"}
-          className="border border-swiss-rule px-2 py-1.5 text-xs transition hover:border-swiss-red disabled:text-swiss-muted active:translate-y-px"
+          className="workbench-button"
         >
-          {status === "asking"
-            ? payloadScope === "Corpus retrieval"
-              ? "Asking with corpus retrieval"
-              : "Asking with evidence"
-            : payloadScope === "Corpus retrieval"
-              ? "Ask with corpus retrieval"
-              : "Ask with evidence"}
+          <PaperPlaneTilt aria-hidden="true" size={14} weight="bold" />
+          {status === "asking" ? "Asking" : "Ask"}
         </button>
       </div>
       {message ? <p className="text-sm text-swiss-red">{message}</p> : null}

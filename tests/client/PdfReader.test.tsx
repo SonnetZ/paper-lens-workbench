@@ -99,6 +99,25 @@ describe("PdfReader", () => {
     expect(pdfMocks.getDocument).toHaveBeenCalledWith(expect.objectContaining({ url: "/api/papers/FT0001/pdf" }));
   });
 
+  it("moves between PDF pages with previous and next controls", async () => {
+    render(
+      <PdfReader
+        recordId="FT0001"
+        pdfUrl="/api/papers/FT0001/pdf"
+        sourcePath="/sample/FT0001.pdf"
+        onEvidence={vi.fn()}
+      />
+    );
+
+    expect(await screen.findByText("Page 1 / 3")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Previous PDF page" })).toBeDisabled();
+
+    await userEvent.click(screen.getByRole("button", { name: "Next PDF page" }));
+
+    expect(await screen.findByText("Page 2 / 3")).toBeInTheDocument();
+    await waitFor(() => expect(pdfMocks.getPage).toHaveBeenCalledWith(2));
+  });
+
   it("opens an inline question box for selected PDF text and saves it as evidence", async () => {
     const onEvidence = vi.fn();
     const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
@@ -201,6 +220,108 @@ describe("PdfReader", () => {
       pageNumber: 1,
       reviewerNote: "",
       pdfVerificationNote: ""
+    });
+  });
+
+  it("translates selected PDF text with the default OPUS-MT provider", async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
+      Response.json({ translation: "研究人员评估了该工具。", provider: "opus" })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <PdfReader
+        recordId="FT0001"
+        pdfUrl="/api/papers/FT0001/pdf"
+        sourcePath="/sample/FT0001.pdf"
+        onEvidence={vi.fn()}
+      />
+    );
+
+    const selectedText = await screen.findByText("Alpha extraction text. Second line.");
+    vi.spyOn(
+      screen.getByRole("article", { name: "Rendered PDF page" }),
+      "getBoundingClientRect"
+    ).mockReturnValue({
+      left: 80,
+      top: 100,
+      width: 720,
+      height: 540,
+      right: 800,
+      bottom: 640,
+      x: 80,
+      y: 100,
+      toJSON: () => ({})
+    } as DOMRect);
+    vi.spyOn(window, "getSelection").mockReturnValue({
+      anchorNode: selectedText.firstChild,
+      rangeCount: 1,
+      getRangeAt: () => ({
+        getBoundingClientRect: () => ({ left: 120, top: 160, width: 90, height: 18 })
+      }),
+      toString: () => "The researchers evaluated the tool."
+    } as unknown as Selection);
+
+    fireEvent.mouseUp(selectedText);
+    await userEvent.click(screen.getByRole("button", { name: "Translate selection" }));
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/translate",
+      expect.objectContaining({
+        method: "POST",
+        headers: { "Content-Type": "application/json" }
+      })
+    );
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toEqual(
+      expect.objectContaining({
+        text: "The researchers evaluated the tool.",
+        provider: "opus"
+      })
+    );
+    expect(await screen.findByText("研究人员评估了该工具。")).toBeInTheDocument();
+  });
+
+  it("keeps the PDF selection popup visible when selected text is near the viewport bottom", async () => {
+    render(
+      <PdfReader
+        recordId="FT0001"
+        pdfUrl="/api/papers/FT0001/pdf"
+        sourcePath="/sample/FT0001.pdf"
+        onEvidence={vi.fn()}
+      />
+    );
+
+    const selectedText = await screen.findByText("Alpha extraction text. Second line.");
+    const article = screen.getByRole("article", { name: "Rendered PDF page" });
+    Object.defineProperty(article, "clientWidth", { configurable: true, value: 720 });
+    Object.defineProperty(article, "clientHeight", { configurable: true, value: 540 });
+    Object.defineProperty(article, "scrollTop", { configurable: true, value: 1000 });
+    Object.defineProperty(article, "scrollLeft", { configurable: true, value: 0 });
+    vi.spyOn(article, "getBoundingClientRect").mockReturnValue({
+      left: 80,
+      top: 100,
+      width: 720,
+      height: 540,
+      right: 800,
+      bottom: 640,
+      x: 80,
+      y: 100,
+      toJSON: () => ({})
+    } as DOMRect);
+    vi.spyOn(window, "getSelection").mockReturnValue({
+      anchorNode: selectedText.firstChild,
+      rangeCount: 1,
+      getRangeAt: () => ({
+        getBoundingClientRect: () => ({ left: 160, top: 600, width: 90, height: 18 })
+      }),
+      toString: () => "Alpha extraction text"
+    } as unknown as Selection);
+
+    fireEvent.mouseUp(selectedText);
+
+    expect(screen.getByRole("dialog", { name: "Ask about selected text" })).toHaveStyle({
+      left: "125px",
+      top: "1230px"
     });
   });
 });

@@ -1,2 +1,4 @@
 record_id,title,first_author,year,source_filename,source_path,decision,primary_exclusion_reason,eligibility_rationale,typology_relevance_notes,evaluation_relevance_notes,prompting_practices_notes,evidence_locator,review_status,second_review_reason,reviewer,review_date
 FT0001,Sample AI-assisted interview analysis,Rivera,2026,FT0001_sample.md,FT0001_sample.md,,,,,,,,unreviewed,,,
+FT0002,Bassignana-2025-The AI gap-socioeconomics and llm interaction,,,Bassignana-2025-The AI gap-socioeconomics and llm interaction.pdf,Bassignana-2025-The AI gap-socioeconomics and llm interaction.pdf,,,,,,,,unreviewed,,,
+FT0003,Li-2025-Generating Diverse Training Samples,,,Li-2025-Generating Diverse Training Samples.pdf,Li-2025-Generating Diverse Training Samples.pdf,,,,,,,,unreviewed,,,

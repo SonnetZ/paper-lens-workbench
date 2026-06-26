@@ -3,19 +3,22 @@
 import { useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import type { EvidenceInput, EvidencePacket, ScopedAskAnswer } from "@/lib/types";
+import type {
+  EvidenceInput,
+  EvidencePacket,
+  RuntimeModelSettings,
+  ScopedAskAnswer,
+  TranslationProvider
+} from "@/lib/types";
+import { SelectionAssistant } from "@/components/SelectionAssistant";
+import type { SelectionDraft } from "@/components/SelectionAssistant";
 
 interface Props {
   recordId: string;
   sourcePath: string;
   markdown: string;
+  modelSettings?: RuntimeModelSettings;
   onEvidence: (input: EvidenceInput) => void;
-}
-
-interface SelectionDraft {
-  evidence: EvidenceInput;
-  left: number;
-  top: number;
 }
 
 function firstBodyParagraph(markdown: string): { heading: string; text: string } {
@@ -30,13 +33,17 @@ function firstBodyParagraph(markdown: string): { heading: string; text: string }
   return { heading, text: "" };
 }
 
-export function MarkdownReader({ recordId, sourcePath, markdown, onEvidence }: Props) {
+export function MarkdownReader({ recordId, sourcePath, markdown, modelSettings, onEvidence }: Props) {
   const articleRef = useRef<HTMLElement | null>(null);
   const [selectionDraft, setSelectionDraft] = useState<SelectionDraft | null>(null);
   const [selectionQuestion, setSelectionQuestion] = useState("");
   const [selectionAnswer, setSelectionAnswer] = useState<ScopedAskAnswer | null>(null);
   const [askStatus, setAskStatus] = useState<"idle" | "asking" | "error">("idle");
   const [askMessage, setAskMessage] = useState("");
+  const [translationProvider, setTranslationProvider] = useState<TranslationProvider>("opus");
+  const [translation, setTranslation] = useState("");
+  const [translateStatus, setTranslateStatus] = useState<"idle" | "translating" | "error">("idle");
+  const [translateMessage, setTranslateMessage] = useState("");
 
   const selectedEvidence = useMemo(
     () => (selectionDraft ? evidenceInputToPacket(selectionDraft.evidence) : null),
@@ -63,26 +70,26 @@ export function MarkdownReader({ recordId, sourcePath, markdown, onEvidence }: P
     };
   };
 
-  const captureSelection = () => {
-    onEvidence(buildEvidenceFromSelection());
-  };
-
-  const showSelectionAssistant = () => {
+  const showSelectionAssistant = (event?: { target: EventTarget | null }) => {
+    if (event?.target instanceof Element && event.target.closest("[data-selection-assistant]")) return;
     const selection = window.getSelection();
     const selected = selection?.toString().trim();
     if (!selected || !articleRef.current || !selection?.anchorNode) return;
     if (!articleRef.current.contains(selection.anchorNode)) return;
     const rect = selectionRect(selection);
-    const containerRect = articleRef.current.getBoundingClientRect();
+    const position = selectionAssistantPosition(rect, articleRef.current);
     setSelectionDraft({
       evidence: buildEvidenceFromSelection(),
-      left: clampNumber(rect.left - containerRect.left + rect.width / 2, 16, containerRect.width - 376),
-      top: clampNumber(rect.top - containerRect.top + rect.height + 10, 72, containerRect.height - 260)
+      left: position.left,
+      top: position.top
     });
     setSelectionQuestion("");
     setSelectionAnswer(null);
     setAskStatus("idle");
     setAskMessage("");
+    setTranslation("");
+    setTranslateStatus("idle");
+    setTranslateMessage("");
   };
 
   const askAboutSelection = async () => {
@@ -113,24 +120,39 @@ export function MarkdownReader({ recordId, sourcePath, markdown, onEvidence }: P
     }
   };
 
+  const translateSelectedText = async () => {
+    if (!selectionDraft) return;
+    setTranslateStatus("translating");
+    setTranslateMessage("");
+    setTranslation("");
+    try {
+      const response = await fetch("/api/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: selectionDraft.evidence.quoteSnippet,
+          provider: translationProvider,
+          modelSettings
+        })
+      });
+      const data = (await response.json()) as { translation?: string; error?: string };
+      if (!response.ok || !data.translation) throw new Error(data.error ?? "Unable to translate selection");
+      setTranslation(data.translation);
+      setTranslateStatus("idle");
+    } catch (error) {
+      setTranslateStatus("error");
+      setTranslateMessage(error instanceof Error ? error.message : "Unable to translate selection");
+    }
+  };
+
   return (
-    <section className="relative grid min-h-0 grid-rows-[auto_1fr]">
-      <div className="flex items-center justify-between border-b border-swiss-rule px-4 py-2">
-        <span className="font-mono text-xs text-swiss-muted">Markdown</span>
-        <button
-          type="button"
-          onClick={captureSelection}
-          className="border border-swiss-rule px-2 py-1 text-xs transition hover:border-swiss-red active:translate-y-px"
-        >
-          Save selection
-        </button>
-      </div>
+    <section className="relative grid min-h-0">
       <article
         ref={articleRef}
         aria-label="Rendered markdown paper"
         onMouseUp={showSelectionAssistant}
         onKeyUp={showSelectionAssistant}
-        className="markdown-paper overflow-auto bg-white px-6 py-6 md:px-10"
+        className="markdown-paper relative overflow-auto bg-white px-6 py-6 md:px-10"
       >
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
@@ -144,66 +166,28 @@ export function MarkdownReader({ recordId, sourcePath, markdown, onEvidence }: P
         >
           {markdown}
         </ReactMarkdown>
+        {selectionDraft ? (
+          <SelectionAssistant
+            draft={selectionDraft}
+            question={selectionQuestion}
+            answer={selectionAnswer}
+            askStatus={askStatus}
+            askMessage={askMessage}
+            translationProvider={translationProvider}
+            translation={translation}
+            translateStatus={translateStatus}
+            translateMessage={translateMessage}
+            questionId="selection-question"
+            providerId="selection-translation-provider"
+            onQuestionChange={setSelectionQuestion}
+            onTranslationProviderChange={setTranslationProvider}
+            onTranslate={translateSelectedText}
+            onSave={() => onEvidence(selectionDraft.evidence)}
+            onAsk={askAboutSelection}
+            onClose={() => setSelectionDraft(null)}
+          />
+        ) : null}
       </article>
-      {selectionDraft ? (
-        <section
-          role="dialog"
-          aria-label="Ask about selected text"
-          className="absolute z-20 w-[min(360px,calc(100%-32px))] border-l-2 border-swiss-red bg-white p-3 shadow-[0_18px_40px_rgba(24,24,27,0.16)]"
-          style={{
-            left: `${selectionDraft.left}px`,
-            top: `${selectionDraft.top}px`
-          }}
-        >
-          <div className="flex items-start justify-between gap-3">
-            <p className="line-clamp-2 text-xs leading-5 text-swiss-muted">
-              {selectionDraft.evidence.quoteSnippet}
-            </p>
-            <button
-              type="button"
-              aria-label="Close selection assistant"
-              onClick={() => setSelectionDraft(null)}
-              className="px-1 font-mono text-xs text-swiss-muted transition hover:text-swiss-red"
-            >
-              x
-            </button>
-          </div>
-          <div className="mt-3 grid gap-1.5">
-            <label htmlFor="selection-question" className="text-xs font-semibold">
-              Question about selection
-            </label>
-            <textarea
-              id="selection-question"
-              value={selectionQuestion}
-              onChange={(event) => setSelectionQuestion(event.target.value)}
-              className="min-h-16 resize-y border-0 border-b border-swiss-rule bg-swiss-wash px-2 py-1.5 text-sm leading-5 outline-none focus:border-swiss-red"
-            />
-          </div>
-          <div className="mt-3 flex items-center justify-between gap-2">
-            <button
-              type="button"
-              onClick={() => onEvidence(selectionDraft.evidence)}
-              className="px-0 text-xs font-semibold text-swiss-muted transition hover:text-swiss-red active:translate-y-px"
-            >
-              Save evidence
-            </button>
-            <button
-              type="button"
-              onClick={askAboutSelection}
-              disabled={!selectionQuestion.trim() || askStatus === "asking"}
-              className="border-b border-swiss-red px-0 py-1 text-xs font-semibold text-swiss-red transition disabled:border-swiss-rule disabled:text-swiss-muted active:translate-y-px"
-            >
-              {askStatus === "asking" ? "Asking selection" : "Ask selection"}
-            </button>
-          </div>
-          {askMessage ? <p className="mt-3 text-xs text-swiss-red">{askMessage}</p> : null}
-          {selectionAnswer ? (
-            <p className="mt-3 border-t border-swiss-rule pt-3 text-sm leading-5">
-              {selectionAnswer.answer}
-            </p>
-          ) : null}
-        </section>
-      ) : null}
     </section>
   );
 }
@@ -256,4 +240,29 @@ function isHeading(element: Element): boolean {
 
 function clampNumber(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), Math.max(min, max));
+}
+
+function selectionAssistantPosition(
+  rect: Pick<DOMRect, "left" | "top" | "width" | "height">,
+  container: HTMLElement
+): { left: number; top: number } {
+  const containerRect = container.getBoundingClientRect();
+  const width = 360;
+  const height = 260;
+  const gap = 10;
+  const edge = 16;
+  const viewportWidth = container.clientWidth || containerRect.width;
+  const viewportHeight = container.clientHeight || containerRect.height;
+  const visibleLeft = container.scrollLeft + edge;
+  const visibleTop = container.scrollTop + edge;
+  const visibleRight = container.scrollLeft + viewportWidth - width - edge;
+  const visibleBottom = container.scrollTop + viewportHeight - height - edge;
+  const left = rect.left - containerRect.left + container.scrollLeft + rect.width / 2;
+  const below = rect.top - containerRect.top + container.scrollTop + rect.height + gap;
+  const above = rect.top - containerRect.top + container.scrollTop - height - gap;
+  const top = below <= visibleBottom ? below : above >= visibleTop ? above : below;
+  return {
+    left: clampNumber(left, visibleLeft, visibleRight),
+    top: clampNumber(top, visibleTop, visibleBottom)
+  };
 }

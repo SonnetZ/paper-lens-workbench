@@ -1,5 +1,6 @@
 export type ModelSource = "local" | "online";
 export type InternalLlmMode = "mock" | ModelSource;
+export type TranslationProvider = "opus" | ModelSource;
 export type PayloadScope = "Selection" | "Paper sections" | "Full paper" | "Corpus retrieval";
 
 export interface AppConfig {
@@ -14,6 +15,7 @@ export interface AppConfig {
   onlineLlmBaseUrl: string;
   onlineLlmModel: string;
   onlineConfigSource: "manual" | "env" | "cc_switch";
+  translationOpusBaseUrl?: string;
   llmMaxInputChars: number;
 }
 

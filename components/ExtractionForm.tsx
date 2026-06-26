@@ -1,5 +1,6 @@
 "use client";
 
+import { FloppyDisk, LinkSimple } from "@phosphor-icons/react";
 import { useEffect, useMemo, useState } from "react";
 import type {
   EvidencePacket,
@@ -8,6 +9,7 @@ import type {
   ExtractionArtifactInput,
   PaperListItem
 } from "@/lib/types";
+import { InfoHint } from "@/components/InfoHint";
 
 const emptyExtraction: ExtractionArtifact = {
   recordId: "",
@@ -179,11 +181,15 @@ export function ExtractionForm({
       />
 
       <div className="grid gap-1.5">
-        <label htmlFor="extraction-evidence-locator" className="text-xs font-semibold">
-          Extraction evidence locator
-        </label>
+        <div className="flex items-center gap-1">
+          <label htmlFor="extraction-evidence-locator" className="text-xs font-semibold">
+            Extraction evidence locator (MD/PDF)
+          </label>
+          <InfoHint label="Use the MD heading or PDF page locator from the evidence tray so the extracted note stays auditable." />
+        </div>
         <input
           id="extraction-evidence-locator"
+          aria-label="Extraction evidence locator"
           value={form.evidenceLocator}
           onChange={(event) => update({ evidenceLocator: event.target.value })}
           className="min-w-0 border border-swiss-rule px-2 py-1.5 text-sm"
@@ -210,21 +216,26 @@ export function ExtractionForm({
         </div>
         <button
           type="button"
+          aria-label="Attach latest evidence"
           onClick={attachLatestEvidence}
           disabled={!latestEvidence}
-          className="self-end border border-swiss-rule px-2 py-1.5 text-xs transition hover:border-swiss-red disabled:text-swiss-muted active:translate-y-px"
+          className="workbench-button self-end"
+          title="Insert the newest evidence packet from the tray into the selected extraction field."
         >
-          Attach latest evidence
+          <LinkSimple aria-hidden="true" size={14} weight="bold" />
+          Attach latest
         </button>
       </div>
 
       <button
         type="button"
+        aria-label="Save extraction"
         onClick={save}
         disabled={status === "loading" || status === "saving"}
-        className="border border-swiss-red bg-swiss-red px-3 py-2 text-sm font-semibold text-white transition disabled:border-swiss-rule disabled:bg-swiss-wash disabled:text-swiss-muted active:translate-y-px"
+        className="workbench-button workbench-button-primary"
       >
-        {status === "saving" ? "Saving extraction" : "Save extraction"}
+        <FloppyDisk aria-hidden="true" size={15} weight="bold" />
+        {status === "saving" ? "Saving" : "Save"}
       </button>
       {message ? (
         <p

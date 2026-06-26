@@ -69,7 +69,9 @@ describe("AskPanel", () => {
       />
     );
 
-    expect(screen.getByText("Uses evidence packets attached to this paper.")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Answer only from evidence packets attached in the tray." })
+    ).toBeInTheDocument();
     expect(screen.getByText("Model: local / qwen-local")).toBeInTheDocument();
 
     await userEvent.type(
@@ -111,7 +113,11 @@ describe("AskPanel", () => {
     render(<AskPanel paper={paper} evidence={[]} />);
 
     await userEvent.selectOptions(screen.getByLabelText("Payload scope"), "Corpus retrieval");
-    expect(screen.getByText("Searches the local review knowledge base, then sends retrieved chunks.")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: "Search the local knowledge base and answer from retrieved chunks."
+      })
+    ).toBeInTheDocument();
     await userEvent.type(screen.getByLabelText("Question"), "Does the paper disclose prompts?");
     await userEvent.click(screen.getByRole("button", { name: "Ask with corpus retrieval" }));
 

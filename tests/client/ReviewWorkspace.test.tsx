@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { PaperListItem, RuntimeModelSettings } from "@/lib/types";
 import { ReviewWorkspace } from "@/components/ReviewWorkspace";
@@ -83,7 +84,9 @@ describe("ReviewWorkspace", () => {
     );
 
     await waitFor(() => expect(screen.getByText("4 documents")).toBeInTheDocument());
-    await waitFor(() => expect(screen.getByText("Human decision: maybe")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText("maybe", { selector: ".review-meta-value" })).toBeInTheDocument()
+    );
     await waitFor(() =>
       expect(screen.getByDisplayValue("Loaded method typology.")).toBeInTheDocument()
     );
@@ -98,9 +101,34 @@ describe("ReviewWorkspace", () => {
     expect(screen.getByRole("heading", { name: "Screening" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Extraction" })).toBeInTheDocument();
     expect(screen.getByText("Model: mock")).toHaveClass("workspace-status-line");
-    expect(screen.getByText("Human decision: maybe").parentElement).toHaveClass(
-      "workspace-status-strip"
-    );
+    expect(
+      screen.getByText("maybe", { selector: ".review-meta-value" }).closest(".workspace-status-strip")
+    ).toHaveClass("workspace-status-strip");
+
+    for (const title of [
+      "Model source",
+      "Ask",
+      "Brief",
+      "Knowledge base",
+      "Screening",
+      "Extraction",
+      "Review material",
+      "Evidence attached"
+    ]) {
+      expect(screen.getByRole("heading", { name: title }).closest("summary")?.parentElement).not.toHaveAttribute(
+        "open"
+      );
+    }
+
+    const askSummary = screen.getByRole("heading", { name: "Ask" }).closest("summary");
+    await userEvent.click(askSummary as HTMLElement);
+    expect(askSummary?.parentElement).toHaveAttribute("open");
+    expect(window.localStorage.getItem("paper-lens:artifact:review-workspace:ask")).toBe("open");
+
+    const briefSummary = screen.getByRole("heading", { name: "Brief" }).closest("summary");
+    expect(briefSummary?.parentElement).not.toHaveAttribute("open");
+    await userEvent.click(briefSummary as HTMLElement);
+    expect(briefSummary?.parentElement).toHaveAttribute("open");
   });
 });
 

@@ -4,8 +4,8 @@ import os from "node:os";
 import path from "node:path";
 import {
   buildPortableBoxReport,
+  createPortableArchive,
   getArchiveName,
-  listPortableFiles
 } from "./portable-core.mjs";
 
 export function runPortableSmokeCheck(appRoot, options = {}) {
@@ -22,12 +22,7 @@ export function runPortableSmokeCheck(appRoot, options = {}) {
   issues.push(...sourceReport.issues);
 
   if (lastStepOk(steps)) {
-    fs.mkdirSync(path.dirname(archivePath), { recursive: true });
-    const packResult = spawnSync(
-      "tar",
-      ["-czf", archivePath, "--transform", "s,^,paper-lens-workbench/,", ...listPortableFiles(root)],
-      { cwd: root, encoding: "utf8" }
-    );
+    const packResult = createPortableArchive(root, archivePath);
     steps.push({ name: "archive-pack", ok: packResult.status === 0 });
     if (packResult.status !== 0) {
       issues.push({

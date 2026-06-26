@@ -104,3 +104,14 @@ export function updateEvidencePdfVerificationNote(
   if (!updated) throw new Error(`Evidence packet not found: ${id}`);
   return updated;
 }
+
+export function deleteEvidencePacket(config: AppConfig, evidenceId: string): string {
+  const id = evidenceId.trim();
+  if (!id) throw new Error("evidenceId is required");
+
+  const db = openReaderDb(config.readerDbPath);
+  const result = db.prepare("DELETE FROM evidence_packets WHERE id = ?").run(id);
+  db.close();
+  if (result.changes === 0) throw new Error(`Evidence packet not found: ${id}`);
+  return id;
+}

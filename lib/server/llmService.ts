@@ -141,7 +141,7 @@ async function callOpenAiCompatibleScopedAsk(
   return content;
 }
 
-function resolveRuntimeModelConfig(
+export function resolveRuntimeModelConfig(
   config: AppConfig,
   settings?: RuntimeModelSettings
 ): { config: AppConfig; manualOnlineApiKey?: string } {
@@ -178,15 +178,15 @@ function resolveRuntimeModelConfig(
   };
 }
 
-function providerBaseUrl(config: AppConfig): string {
+export function providerBaseUrl(config: AppConfig): string {
   return config.llmMode === "online" ? config.onlineLlmBaseUrl : config.localLlmBaseUrl;
 }
 
-function providerModel(config: AppConfig): string {
+export function providerModel(config: AppConfig): string {
   return config.llmMode === "online" ? config.onlineLlmModel : config.localLlmModel;
 }
 
-function providerHeaders(config: AppConfig, manualOnlineApiKey?: string): HeadersInit {
+export function providerHeaders(config: AppConfig, manualOnlineApiKey?: string): HeadersInit {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     accept: "application/json"

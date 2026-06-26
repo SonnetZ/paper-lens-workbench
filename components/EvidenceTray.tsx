@@ -1,5 +1,13 @@
 "use client";
 
+import {
+  CaretDown,
+  CaretUp,
+  FloppyDisk,
+  PaperPlaneTilt,
+  Plus,
+  Trash
+} from "@phosphor-icons/react";
 import { useState } from "react";
 import type {
   EvidenceInput,
@@ -7,6 +15,7 @@ import type {
   EvidenceRouteInput,
   ReviewFieldTarget
 } from "@/lib/types";
+import { InfoHint } from "@/components/InfoHint";
 
 const routeTargets: Array<{ value: ReviewFieldTarget; label: string }> = [
   { value: "screening.eligibilityRationale", label: "Screening: Eligibility rationale" },
@@ -26,7 +35,8 @@ export function EvidenceTray({
   message = "",
   onManualEvidence,
   onRouteEvidence,
-  onPdfVerificationNote
+  onPdfVerificationNote,
+  onDeleteEvidence
 }: {
   recordId: string | null;
   evidence: EvidencePacket[];
@@ -35,7 +45,9 @@ export function EvidenceTray({
   onManualEvidence?: (input: EvidenceInput) => void;
   onRouteEvidence?: (input: EvidenceRouteInput) => void;
   onPdfVerificationNote?: (evidenceId: string, note: string) => void;
+  onDeleteEvidence?: (evidenceId: string) => void;
 }) {
+  const [collapsed, setCollapsed] = useState(false);
   const [reviewerNote, setReviewerNote] = useState("");
   const [locator, setLocator] = useState("Reviewer note");
   const [routeTargetsByEvidenceId, setRouteTargetsByEvidenceId] = useState<
@@ -75,14 +87,36 @@ export function EvidenceTray({
   return (
     <aside
       aria-labelledby="evidence-tray-title"
-      className="border-t border-swiss-rule bg-swiss-wash px-4 py-3 md:max-h-[34dvh] md:overflow-auto"
+      className={`evidence-tray border-t border-swiss-rule bg-swiss-wash px-4 py-3 ${
+        collapsed ? "evidence-tray-collapsed" : "evidence-tray-expanded"
+      }`}
     >
       <div className="flex items-center justify-between">
-        <h2 id="evidence-tray-title" className="text-sm font-semibold">
-          Evidence tray
-        </h2>
-        <span className="font-mono text-xs text-swiss-muted">{evidence.length} items</span>
+        <div className="flex items-center gap-1.5">
+          <h2 id="evidence-tray-title" className="text-sm font-semibold">
+            Evidence tray
+          </h2>
+          <InfoHint label="Selected text and reviewer notes appear here." />
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="font-mono text-xs text-swiss-muted">{evidence.length} items</span>
+          <button
+            type="button"
+            aria-label={collapsed ? "Expand evidence tray" : "Collapse evidence tray"}
+            aria-expanded={!collapsed}
+            onClick={() => setCollapsed((current) => !current)}
+            className="workbench-icon-button workbench-icon-button-sm"
+          >
+            {collapsed ? (
+              <CaretUp aria-hidden="true" weight="bold" className="size-3.5" />
+            ) : (
+              <CaretDown aria-hidden="true" weight="bold" className="size-3.5" />
+            )}
+          </button>
+        </div>
       </div>
+      {collapsed ? null : (
+        <>
       {statusText ? (
         <p
           className={`mt-2 border-t border-swiss-rule pt-2 text-xs ${
@@ -118,27 +152,45 @@ export function EvidenceTray({
           </div>
           <button
             type="button"
+            aria-label="Add note as evidence"
             onClick={addManualEvidence}
             disabled={!canAddNote}
-            className="self-end border border-swiss-rule bg-white px-2 py-1.5 text-xs transition hover:border-swiss-red disabled:text-swiss-muted active:translate-y-px"
+            className="workbench-button self-end"
           >
-            Add note as evidence
+            <Plus aria-hidden="true" size={14} weight="bold" />
+            Add note
           </button>
         </div>
       </div>
-      {evidence.length === 0 ? (
-        <p className="mt-2 text-sm text-swiss-muted">
-          Selected text and reviewer notes appear here.
-        </p>
-      ) : (
-        <ol className="mt-3 grid gap-2">
+      <div className="evidence-list">
+        {evidence.length === 0 ? (
+        <p className="text-sm text-swiss-muted">No evidence yet.</p>
+        ) : (
+        <ol className="grid gap-2">
           {evidence.map((item, index) => {
             const pdfVerificationNote =
               pdfVerificationNotesByEvidenceId[item.id] ?? item.pdfVerificationNote;
 
             return (
-              <li key={item.id} className="border border-swiss-rule bg-white p-2 text-sm">
-                <p className="font-mono text-xs text-swiss-red">{item.evidenceLocator}</p>
+              <li key={item.id} className="evidence-card">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-mono text-xs text-swiss-red">{item.evidenceLocator}</p>
+                    <p className="mt-1 font-mono text-[11px] uppercase text-swiss-muted">
+                      {item.sourceFormat}
+                      {item.pageNumber ? ` / p.${item.pageNumber}` : ""}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    aria-label={`Delete evidence ${index + 1}`}
+                    onClick={() => onDeleteEvidence?.(item.id)}
+                    disabled={status === "saving"}
+                    className="workbench-icon-button workbench-icon-button-sm"
+                  >
+                    <Trash aria-hidden="true" size={13} weight="bold" />
+                  </button>
+                </div>
                 <p className="mt-1 line-clamp-2">{item.quoteSnippet || item.reviewerNote}</p>
                 {item.pdfVerificationNote.trim() ? (
                   <p className="mt-2 border-t border-swiss-rule pt-2 text-xs text-swiss-muted">
@@ -165,11 +217,13 @@ export function EvidenceTray({
                   />
                   <button
                     type="button"
+                    aria-label="Save PDF verification note"
                     onClick={() => onPdfVerificationNote?.(item.id, pdfVerificationNote)}
                     disabled={status === "saving"}
-                    className="justify-self-start border border-swiss-rule px-2 py-1.5 text-xs transition hover:border-swiss-red disabled:text-swiss-muted active:translate-y-px"
+                    className="workbench-button justify-self-start"
                   >
-                    Save PDF verification note
+                    <FloppyDisk aria-hidden="true" size={14} weight="bold" />
+                    Save note
                   </button>
                 </div>
                 <div className="mt-2 grid grid-cols-[1fr_auto] gap-2 border-t border-swiss-rule pt-2">
@@ -202,6 +256,7 @@ export function EvidenceTray({
                   </div>
                   <button
                     type="button"
+                    aria-label="Send evidence to field"
                     onClick={() =>
                       onRouteEvidence?.({
                         evidence: item,
@@ -210,15 +265,19 @@ export function EvidenceTray({
                           "screening.eligibilityRationale"
                       })
                     }
-                    className="self-end border border-swiss-rule px-2 py-1.5 text-xs transition hover:border-swiss-red active:translate-y-px"
+                    className="workbench-button self-end"
                   >
-                    Send evidence to field
+                    <PaperPlaneTilt aria-hidden="true" size={14} weight="bold" />
+                    Send
                   </button>
                 </div>
               </li>
             );
           })}
         </ol>
+        )}
+      </div>
+        </>
       )}
     </aside>
   );

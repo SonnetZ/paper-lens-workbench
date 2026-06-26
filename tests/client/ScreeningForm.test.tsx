@@ -66,7 +66,7 @@ describe("ScreeningForm", () => {
     render(<ScreeningForm paper={paper} evidence={evidence} />);
 
     await userEvent.selectOptions(await screen.findByLabelText("Decision"), "include");
-    expect(screen.getByText("Human decision: include")).toBeInTheDocument();
+    expect(screen.getByText("include", { selector: ".review-meta-value" })).toBeInTheDocument();
     expect(screen.getByLabelText("Review status")).toHaveValue("screened");
     await userEvent.click(screen.getByRole("button", { name: "Attach latest evidence" }));
     await userEvent.type(screen.getByLabelText("Reviewer"), "YZ");
@@ -111,9 +111,9 @@ describe("ScreeningForm", () => {
 
     render(<ScreeningForm paper={paper} evidence={[]} />);
 
-    expect(await screen.findByText("Human decision: include")).toBeInTheDocument();
-    expect(screen.getByText("Status: needs_human_check")).toBeInTheDocument();
-    expect(screen.getByText("Reviewer: Codex workflow test")).toBeInTheDocument();
+    expect(await screen.findByText("include", { selector: ".review-meta-value" })).toBeInTheDocument();
+    expect(screen.getByText("needs_human_check", { selector: ".review-meta-value" })).toBeInTheDocument();
+    expect(screen.getByText("Codex workflow test", { selector: ".review-meta-value" })).toBeInTheDocument();
     expect(screen.getByText("Full-text human verification still required.")).toBeInTheDocument();
   });
 

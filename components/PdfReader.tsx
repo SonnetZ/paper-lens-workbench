@@ -1,28 +1,31 @@
 "use client";
 
+import {
+  CaretLeft,
+  CaretRight
+} from "@phosphor-icons/react";
 import { useEffect, useRef, useState } from "react";
 import type {
   EvidenceInput,
   EvidencePacket,
-  ScopedAskAnswer
+  RuntimeModelSettings,
+  ScopedAskAnswer,
+  TranslationProvider
 } from "@/lib/types";
+import { SelectionAssistant } from "@/components/SelectionAssistant";
+import type { SelectionDraft } from "@/components/SelectionAssistant";
 
 interface Props {
   recordId: string;
   pdfUrl: string;
   sourcePath: string | null;
+  modelSettings?: RuntimeModelSettings;
   onEvidence: (input: EvidenceInput) => void;
-}
-
-interface SelectionDraft {
-  evidence: EvidenceInput;
-  left: number;
-  top: number;
 }
 
 type PdfJsModule = typeof import("pdfjs-dist/legacy/build/pdf.mjs");
 
-export function PdfReader({ recordId, pdfUrl, sourcePath, onEvidence }: Props) {
+export function PdfReader({ recordId, pdfUrl, sourcePath, modelSettings, onEvidence }: Props) {
   const [pageNumber, setPageNumber] = useState(1);
   const [pageCount, setPageCount] = useState<number | null>(null);
   const [status, setStatus] = useState<"loading" | "rendering" | "idle" | "error">("loading");
@@ -32,6 +35,10 @@ export function PdfReader({ recordId, pdfUrl, sourcePath, onEvidence }: Props) {
   const [selectionAnswer, setSelectionAnswer] = useState<ScopedAskAnswer | null>(null);
   const [askStatus, setAskStatus] = useState<"idle" | "asking" | "error">("idle");
   const [askMessage, setAskMessage] = useState("");
+  const [translationProvider, setTranslationProvider] = useState<TranslationProvider>("opus");
+  const [translation, setTranslation] = useState("");
+  const [translateStatus, setTranslateStatus] = useState<"idle" | "translating" | "error">("idle");
+  const [translateMessage, setTranslateMessage] = useState("");
 
   const documentRef = useRef<Awaited<ReturnType<Awaited<PdfJsModule>["getDocument"]>["promise"]> | null>(
     null
@@ -172,16 +179,19 @@ export function PdfReader({ recordId, pdfUrl, sourcePath, onEvidence }: Props) {
     const evidence = buildEvidenceFromSelection();
     if (!evidence || !selection || !pageFrameRef.current) return;
     const rect = selectionRect(selection);
-    const containerRect = pageFrameRef.current.getBoundingClientRect();
+    const position = selectionAssistantPosition(rect, pageFrameRef.current);
     setSelectionDraft({
       evidence,
-      left: clampNumber(rect.left - containerRect.left + rect.width / 2, 16, containerRect.width - 376),
-      top: clampNumber(rect.top - containerRect.top + rect.height + 10, 72, containerRect.height - 260)
+      left: position.left,
+      top: position.top
     });
     setSelectionQuestion("");
     setSelectionAnswer(null);
     setAskStatus("idle");
     setAskMessage("");
+    setTranslation("");
+    setTranslateStatus("idle");
+    setTranslateMessage("");
   };
 
   const askAboutSelection = async () => {
@@ -212,6 +222,31 @@ export function PdfReader({ recordId, pdfUrl, sourcePath, onEvidence }: Props) {
     }
   };
 
+  const translateSelectedText = async () => {
+    if (!selectionDraft) return;
+    setTranslateStatus("translating");
+    setTranslateMessage("");
+    setTranslation("");
+    try {
+      const response = await fetch("/api/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: selectionDraft.evidence.quoteSnippet,
+          provider: translationProvider,
+          modelSettings
+        })
+      });
+      const data = (await response.json()) as { translation?: string; error?: string };
+      if (!response.ok || !data.translation) throw new Error(data.error ?? "Unable to translate selection");
+      setTranslation(data.translation);
+      setTranslateStatus("idle");
+    } catch (error) {
+      setTranslateStatus("error");
+      setTranslateMessage(error instanceof Error ? error.message : "Unable to translate selection");
+    }
+  };
+
   return (
     <section
       aria-label="PDF reader panel"
@@ -219,20 +254,40 @@ export function PdfReader({ recordId, pdfUrl, sourcePath, onEvidence }: Props) {
     >
       <div className="flex items-center justify-between border-b border-swiss-rule px-4 py-2">
         <span className="font-mono text-xs text-swiss-muted">
-          PDF page {pageNumber}
+          Page {pageNumber}
           {pageCount ? ` / ${pageCount}` : ""}
         </span>
-        <input
-          aria-label="PDF page"
-          value={pageNumber}
-          onChange={(event) =>
-            setPageNumber(clampPageNumber(Number(event.target.value) || 1, pageCount ?? Infinity))
-          }
-          type="number"
-          min={1}
-          max={pageCount ?? undefined}
-          className="w-20 border border-swiss-rule px-2 py-1 font-mono text-xs"
-        />
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            aria-label="Previous PDF page"
+            onClick={() => setPageNumber((current) => clampPageNumber(current - 1, pageCount ?? 1))}
+            disabled={pageNumber <= 1}
+            className="workbench-icon-button workbench-icon-button-sm"
+          >
+            <CaretLeft aria-hidden="true" size={13} weight="bold" />
+          </button>
+          <input
+            aria-label="PDF page"
+            value={pageNumber}
+            onChange={(event) =>
+              setPageNumber(clampPageNumber(Number(event.target.value) || 1, pageCount ?? Infinity))
+            }
+            type="number"
+            min={1}
+            max={pageCount ?? undefined}
+            className="w-20 border border-swiss-rule px-2 py-1 font-mono text-xs"
+          />
+          <button
+            type="button"
+            aria-label="Next PDF page"
+            onClick={() => setPageNumber((current) => clampPageNumber(current + 1, pageCount ?? 1))}
+            disabled={pageCount ? pageNumber >= pageCount : true}
+            className="workbench-icon-button workbench-icon-button-sm"
+          >
+            <CaretRight aria-hidden="true" size={13} weight="bold" />
+          </button>
+        </div>
       </div>
       <article
         ref={pageFrameRef}
@@ -258,95 +313,21 @@ export function PdfReader({ recordId, pdfUrl, sourcePath, onEvidence }: Props) {
             answer={selectionAnswer}
             askStatus={askStatus}
             askMessage={askMessage}
+            translationProvider={translationProvider}
+            translation={translation}
+            translateStatus={translateStatus}
+            translateMessage={translateMessage}
+            questionId="pdf-selection-question"
+            providerId="pdf-selection-translation-provider"
             onQuestionChange={setSelectionQuestion}
+            onTranslationProviderChange={setTranslationProvider}
+            onTranslate={translateSelectedText}
             onSave={() => onEvidence(selectionDraft.evidence)}
             onAsk={askAboutSelection}
             onClose={() => setSelectionDraft(null)}
           />
         ) : null}
       </article>
-    </section>
-  );
-}
-
-function SelectionAssistant({
-  draft,
-  question,
-  answer,
-  askStatus,
-  askMessage,
-  onQuestionChange,
-  onSave,
-  onAsk,
-  onClose
-}: {
-  draft: SelectionDraft;
-  question: string;
-  answer: ScopedAskAnswer | null;
-  askStatus: "idle" | "asking" | "error";
-  askMessage: string;
-  onQuestionChange: (value: string) => void;
-  onSave: () => void;
-  onAsk: () => void;
-  onClose: () => void;
-}) {
-  return (
-    <section
-      role="dialog"
-      aria-label="Ask about selected text"
-      className="absolute z-20 w-[min(360px,calc(100%-32px))] border-l-2 border-swiss-red bg-white p-3 shadow-[0_18px_40px_rgba(24,24,27,0.16)]"
-      style={{
-        left: `${draft.left}px`,
-        top: `${draft.top}px`
-      }}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <p className="line-clamp-2 text-xs leading-5 text-swiss-muted">
-          {draft.evidence.quoteSnippet}
-        </p>
-        <button
-          type="button"
-          aria-label="Close selection assistant"
-          onClick={onClose}
-          className="px-1 font-mono text-xs text-swiss-muted transition hover:text-swiss-red"
-        >
-          x
-        </button>
-      </div>
-      <div className="mt-3 grid gap-1.5">
-        <label htmlFor="pdf-selection-question" className="text-xs font-semibold">
-          Question about selection
-        </label>
-        <textarea
-          id="pdf-selection-question"
-          value={question}
-          onChange={(event) => onQuestionChange(event.target.value)}
-          className="min-h-16 resize-y border-0 border-b border-swiss-rule bg-swiss-wash px-2 py-1.5 text-sm leading-5 outline-none focus:border-swiss-red"
-        />
-      </div>
-      <div className="mt-3 flex items-center justify-between gap-2">
-        <button
-          type="button"
-          onClick={onSave}
-          className="px-0 text-xs font-semibold text-swiss-muted transition hover:text-swiss-red active:translate-y-px"
-        >
-          Save evidence
-        </button>
-        <button
-          type="button"
-          onClick={onAsk}
-          disabled={!question.trim() || askStatus === "asking"}
-          className="border-b border-swiss-red px-0 py-1 text-xs font-semibold text-swiss-red transition disabled:border-swiss-rule disabled:text-swiss-muted active:translate-y-px"
-        >
-          {askStatus === "asking" ? "Asking selection" : "Ask selection"}
-        </button>
-      </div>
-      {askMessage ? <p className="mt-3 text-xs text-swiss-red">{askMessage}</p> : null}
-      {answer ? (
-        <p className="mt-3 border-t border-swiss-rule pt-3 text-sm leading-5">
-          {answer.answer}
-        </p>
-      ) : null}
     </section>
   );
 }
@@ -383,4 +364,29 @@ function clampPageNumber(value: number, pageCount: number): number {
 
 function clampNumber(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), Math.max(min, max));
+}
+
+function selectionAssistantPosition(
+  rect: Pick<DOMRect, "left" | "top" | "width" | "height">,
+  container: HTMLElement
+): { left: number; top: number } {
+  const containerRect = container.getBoundingClientRect();
+  const width = 360;
+  const height = 260;
+  const gap = 10;
+  const edge = 16;
+  const viewportWidth = container.clientWidth || containerRect.width;
+  const viewportHeight = container.clientHeight || containerRect.height;
+  const visibleLeft = container.scrollLeft + edge;
+  const visibleTop = container.scrollTop + edge;
+  const visibleRight = container.scrollLeft + viewportWidth - width - edge;
+  const visibleBottom = container.scrollTop + viewportHeight - height - edge;
+  const left = rect.left - containerRect.left + container.scrollLeft + rect.width / 2;
+  const below = rect.top - containerRect.top + container.scrollTop + rect.height + gap;
+  const above = rect.top - containerRect.top + container.scrollTop - height - gap;
+  const top = below <= visibleBottom ? below : above >= visibleTop ? above : below;
+  return {
+    left: clampNumber(left, visibleLeft, visibleRight),
+    top: clampNumber(top, visibleTop, visibleBottom)
+  };
 }

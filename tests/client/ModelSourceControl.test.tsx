@@ -14,13 +14,13 @@ describe("ModelSourceControl", () => {
     expect(screen.getByRole("button", { name: "Local" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Online" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Mock" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Expand model settings" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Expand model settings" })).not.toBeInTheDocument();
     expect(screen.queryByText("Development mode: mock responses")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Show model settings" })).not.toBeInTheDocument();
     expect(screen.queryByText("Select Local or Online")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Local port")).not.toBeInTheDocument();
     expect(screen.getByRole("group", { name: "Model source" })).toBeInTheDocument();
-    expect(screen.getAllByRole("button")).toHaveLength(3);
+    expect(screen.getAllByRole("button")).toHaveLength(2);
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/model-config"));
   });
 
@@ -41,7 +41,6 @@ describe("ModelSourceControl", () => {
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/model-config"));
     await userEvent.click(screen.getByRole("button", { name: "Local" }));
-    await userEvent.click(screen.getByRole("button", { name: "Expand model settings" }));
     await userEvent.clear(screen.getByLabelText("Local port"));
     await userEvent.type(screen.getByLabelText("Local port"), "8017");
     await userEvent.click(screen.getByRole("button", { name: "Test local connection" }));
@@ -82,7 +81,6 @@ describe("ModelSourceControl", () => {
     render(<ModelSourceControl value={defaultSettings()} onChange={vi.fn()} />);
 
     await userEvent.click(screen.getByRole("button", { name: "Online" }));
-    await userEvent.click(screen.getByRole("button", { name: "Expand model settings" }));
 
     expect(screen.getByLabelText("Credential source")).toBeInTheDocument();
     expect(screen.getByRole("option", { name: "Manual API key" })).toBeInTheDocument();
@@ -122,7 +120,6 @@ describe("ModelSourceControl", () => {
     render(<ModelSourceControl value={defaultSettings()} onChange={onChange} />);
 
     await userEvent.click(screen.getByRole("button", { name: "Online" }));
-    await userEvent.click(screen.getByRole("button", { name: "Expand model settings" }));
     await userEvent.selectOptions(screen.getByLabelText("Credential source"), "env");
     await userEvent.click(screen.getByRole("button", { name: "Test online connection" }));
 
@@ -182,7 +179,6 @@ describe("ModelSourceControl", () => {
     render(<ModelSourceControl value={defaultSettings()} onChange={onChange} />);
 
     await userEvent.click(screen.getByRole("button", { name: "Online" }));
-    await userEvent.click(screen.getByRole("button", { name: "Expand model settings" }));
     await userEvent.selectOptions(screen.getByLabelText("Credential source"), "cc_switch");
     await userEvent.click(screen.getByRole("button", { name: "Test online connection" }));
 
@@ -209,6 +205,35 @@ describe("ModelSourceControl", () => {
         onlineModel: "gpt-5.5"
       })
     );
+  });
+
+  it("shows key status with the online configuration error", async () => {
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      if (url === "/api/model-config") {
+        return Response.json({
+          config: redactedConfig({ configSource: "cc_switch" })
+        });
+      }
+      if (url === "/api/model-config/test" && init?.method === "POST") {
+        return Response.json({
+          ok: false,
+          models: [],
+          error: "Online base URL is not configured"
+        });
+      }
+      return Response.json({}, { status: 404 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<ModelSourceControl value={defaultSettings()} onChange={vi.fn()} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Online" }));
+    await userEvent.selectOptions(screen.getByLabelText("Credential source"), "cc_switch");
+    await userEvent.click(screen.getByRole("button", { name: "Test online connection" }));
+
+    expect(
+      await screen.findByText("Server key status: missing. Online base URL is not configured")
+    ).toBeInTheDocument();
   });
 });
 

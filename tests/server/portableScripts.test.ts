@@ -71,14 +71,25 @@ describe("portable scripts", () => {
       expect.arrayContaining([
         "app/api/evidence/route.ts",
         "app/api/health/route.ts",
+        "app/api/corpus-config/source-file/route.ts",
         "app/api/model-config/route.ts",
         "app/api/model-config/test/route.ts",
         "app/api/papers/[recordId]/brief/route.ts",
         "app/api/papers/[recordId]/export/route.ts",
-        "components/ModelSourceControl.tsx",
-        "components/PdfReader.tsx",
-        "components/ReviewMaterialExport.tsx",
+	        "app/api/translate/route.ts",
+	        "components/BriefPanel.tsx",
+	        "components/CorpusSetup.tsx",
+	        "components/InfoHint.tsx",
+	        "tests/client/InfoHint.test.tsx",
+	        "components/ModelSourceControl.tsx",
+	        "components/PdfReader.tsx",
+	        "components/ReviewMaterialExport.tsx",
+	        "components/SelectionAssistant.tsx",
+        "lib/server/corpusConfig.ts",
         "lib/server/reviewExport.ts",
+        "lib/server/translation.ts",
+        "scripts/opus_mt_translate_server.py",
+        "tests/server/translation.test.ts",
         "tests/client/ReviewMaterialExport.test.tsx",
         "tests/server/reviewExport.test.ts",
         "tests/server/portableScripts.test.ts",
@@ -86,7 +97,7 @@ describe("portable scripts", () => {
       ])
     );
     expect(requiredPackageScripts).toEqual(
-      expect.arrayContaining(["portable:check", "portable:pack", "portable:smoke"])
+      expect.arrayContaining(["translate:opus", "portable:check", "portable:pack", "portable:smoke"])
     );
   });
 

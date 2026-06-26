@@ -44,12 +44,13 @@ export function ReviewMaterialExport({ paper }: { paper: PaperListItem | null })
     <div className="grid gap-2">
       <button
         type="button"
+        aria-label="Export review material"
         onClick={exportMaterial}
         disabled={status === "exporting"}
-        className="inline-flex items-center justify-center gap-2 border border-swiss-rule px-3 py-2 text-sm font-semibold text-swiss-ink transition hover:border-swiss-red disabled:text-swiss-muted active:translate-y-px"
+        className="workbench-button"
       >
         <DownloadSimple aria-hidden="true" size={16} weight="bold" />
-        {status === "exporting" ? "Exporting review material" : "Export review material"}
+        {status === "exporting" ? "Exporting" : "Export"}
       </button>
       {message ? (
         <p className={status === "error" ? "text-sm text-swiss-red" : "text-sm text-swiss-ink"}>

@@ -4,6 +4,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import type { AppConfig } from "@/lib/types";
 import {
+  addPaperSourceFileToScreening,
   getEffectiveCorpusConfig,
   saveCorpusConfig,
   syncScreeningRowsForMarkdownPapers,
@@ -133,5 +134,55 @@ describe("corpus config", () => {
     const csv = await readFile(path.join(reviewDataDir, "full_text_screening.csv"), "utf-8");
     expect(csv.split("\n")[0]).toContain("record_id,title,first_author");
     expect(csv).toContain("FT0001,First Paper Title,,,First Paper.md,First Paper.md");
+  });
+
+  it("adds PDF-only rows while merging matching Markdown and PDF stems", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "reader-corpus-pdf-sync-"));
+    const reviewDataDir = path.join(root, "review");
+    const paperMdDir = path.join(root, "papers_md");
+    const paperPdfDir = path.join(root, "papers_pdf");
+    await mkdir(reviewDataDir, { recursive: true });
+    await mkdir(paperMdDir, { recursive: true });
+    await mkdir(paperPdfDir, { recursive: true });
+    await writeFile(path.join(reviewDataDir, "full_text_screening.csv"), "", "utf-8");
+    await writeFile(path.join(reviewDataDir, "controlled_vocabularies.json"), "{}", "utf-8");
+    await writeFile(path.join(paperMdDir, "Matched Paper.md"), "# Matched Title\n", "utf-8");
+    await writeFile(path.join(paperPdfDir, "Matched Paper.pdf"), "fake pdf", "utf-8");
+    await writeFile(path.join(paperPdfDir, "PDF Only.pdf"), "fake pdf", "utf-8");
+
+    const result = await syncScreeningRowsForMarkdownPapers({
+      reviewDataDir,
+      paperMdDir,
+      paperPdfDir
+    });
+
+    expect(result).toMatchObject({ markdownFileCount: 1, pdfFileCount: 2, addedRowCount: 2 });
+    const csv = await readFile(path.join(reviewDataDir, "full_text_screening.csv"), "utf-8");
+    expect(csv).toContain("FT0001,Matched Title,,,Matched Paper.md,Matched Paper.md");
+    expect(csv).toContain("FT0002,PDF Only,,,PDF Only.pdf,PDF Only.pdf");
+    expect(csv.match(/Matched Paper/g)).toHaveLength(2);
+  });
+
+  it("appends a single selected paper file to the screening CSV", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "reader-corpus-single-file-"));
+    const reviewDataDir = path.join(root, "review");
+    const paperMdDir = path.join(root, "papers_md");
+    const paperPdfDir = path.join(root, "papers_pdf");
+    const loosePdf = path.join(root, "Loose Paper.pdf");
+    await mkdir(reviewDataDir, { recursive: true });
+    await mkdir(paperMdDir, { recursive: true });
+    await mkdir(paperPdfDir, { recursive: true });
+    await writeFile(path.join(reviewDataDir, "full_text_screening.csv"), "", "utf-8");
+    await writeFile(path.join(reviewDataDir, "controlled_vocabularies.json"), "{}", "utf-8");
+    await writeFile(loosePdf, "fake pdf", "utf-8");
+
+    const result = await addPaperSourceFileToScreening(
+      { reviewDataDir, paperMdDir, paperPdfDir },
+      loosePdf
+    );
+
+    expect(result.addedRowCount).toBe(1);
+    const csv = await readFile(path.join(reviewDataDir, "full_text_screening.csv"), "utf-8");
+    expect(csv).toContain(`FT0001,Loose Paper,,,Loose Paper.pdf,${loosePdf}`);
   });
 });

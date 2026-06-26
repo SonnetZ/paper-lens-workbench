@@ -34,4 +34,15 @@ export function listPortableFiles(
   options?: PortableFileListOptions
 ): string[];
 
+export function createPortableArchive(
+  appRoot: string,
+  archivePath: string,
+  appFolderName?: string
+): {
+  status: number | null;
+  stdout: string;
+  stderr: string;
+  error?: Error;
+};
+
 export function getArchiveName(appRoot: string): string;

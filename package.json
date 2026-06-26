@@ -9,15 +9,18 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "e2e": "playwright test",
+    "translate:opus": "python3 scripts/opus_mt_translate_server.py",
     "portable:check": "node scripts/portable-check.mjs",
     "portable:pack": "node scripts/pack-portable.mjs",
     "portable:smoke": "node scripts/portable-smoke.mjs"
   },
   "dependencies": {
+    "@gsap/react": "^2.1.2",
     "@phosphor-icons/react": "^2.1.10",
     "better-sqlite3": "^11.8.1",
     "csv-parse": "^5.6.0",
     "csv-stringify": "^6.5.2",
+    "gsap": "^3.15.0",
     "next": "^15.1.6",
     "pdfjs-dist": "^4.10.38",
     "react": "^19.0.0",

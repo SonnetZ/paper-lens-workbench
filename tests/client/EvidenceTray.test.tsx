@@ -54,6 +54,24 @@ describe("EvidenceTray", () => {
     );
   });
 
+  it("collapses the tray so the reader can use more height", async () => {
+    render(<EvidenceTray recordId="FT0001" evidence={[savedEvidence]} />);
+
+    const tray = screen.getByRole("complementary", { name: "Evidence tray" });
+    expect(screen.getByLabelText("Reviewer note")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Collapse evidence tray" }));
+
+    expect(tray).toHaveClass("evidence-tray-collapsed");
+    expect(screen.queryByLabelText("Reviewer note")).not.toBeInTheDocument();
+    expect(screen.getByText("1 items")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Expand evidence tray" }));
+
+    expect(tray).not.toHaveClass("evidence-tray-collapsed");
+    expect(screen.getByLabelText("Reviewer note")).toBeInTheDocument();
+  });
+
   it("saves a PDF verification note for a saved evidence packet", async () => {
     const onPdfVerificationNote = vi.fn();
 
@@ -75,6 +93,22 @@ describe("EvidenceTray", () => {
       "ev_1",
       "Verified in PDF p. 9; table formatting checked."
     );
+  });
+
+  it("deletes an existing evidence packet from the tray", async () => {
+    const onDeleteEvidence = vi.fn();
+
+    render(
+      <EvidenceTray
+        recordId="FT0001"
+        evidence={[savedEvidence]}
+        onDeleteEvidence={onDeleteEvidence}
+      />
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Delete evidence 1" }));
+
+    expect(onDeleteEvidence).toHaveBeenCalledWith("ev_1");
   });
 
   it("routes a saved evidence packet to a selected review field", async () => {

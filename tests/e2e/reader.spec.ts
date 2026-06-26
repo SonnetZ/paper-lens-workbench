@@ -49,7 +49,7 @@ test("saves corpus paths from the setup panel and reloads the paper queue", asyn
 test("captures evidence and saves a full-text screening row", async ({ page }) => {
   await page.goto("/");
 
-  await page.getByRole("button", { name: "Save selection" }).click();
+  await saveFirstMarkdownSelection(page);
   await expect(page.getByText("1 evidence item(s) ready.")).toBeVisible();
   await page
     .getByLabel("PDF verification note 1: Abstract")
@@ -59,7 +59,7 @@ test("captures evidence and saves a full-text screening row", async ({ page }) =
     page.getByText("PDF verification note: Verified in PDF p. 1; markdown conversion checked.")
   ).toBeVisible();
 
-  const screening = artifactSection(page, "Screening");
+  const screening = await artifactSection(page, "Screening");
   await page.getByLabel("Decision").selectOption("include");
   await screening.getByRole("button", { name: "Attach latest evidence" }).click();
   await page.getByLabel("Reviewer", { exact: true }).fill("YZ");
@@ -87,7 +87,7 @@ test("adds a reviewer note as evidence and writes it to screening rationale", as
   await page.getByRole("button", { name: "Add note as evidence" }).click();
   await expect(page.getByText("1 evidence item(s) ready.")).toBeVisible();
 
-  const screening = artifactSection(page, "Screening");
+  const screening = await artifactSection(page, "Screening");
   await page.getByLabel("Decision").selectOption("include");
   await screening.getByRole("button", { name: "Attach latest evidence" }).click();
   await page.getByLabel("Reviewer", { exact: true }).fill("YZ");
@@ -144,10 +144,10 @@ test("reloads saved reviewer evidence from the local evidence store", async ({ p
 test("saves and reloads extraction notes with attached evidence", async ({ page }) => {
   await page.goto("/");
 
-  await page.getByRole("button", { name: "Save selection" }).click();
+  await saveFirstMarkdownSelection(page);
   await expect(page.getByText("1 evidence item(s) ready.")).toBeVisible();
 
-  const extraction = artifactSection(page, "Extraction");
+  const extraction = await artifactSection(page, "Extraction");
   await extraction
     .getByLabel("Method typology")
     .fill("Analytical pathway: human-in-the-loop LLM coding.");
@@ -160,7 +160,7 @@ test("saves and reloads extraction notes with attached evidence", async ({ page 
 
   await page.reload();
 
-  const reloadedExtraction = artifactSection(page, "Extraction");
+  const reloadedExtraction = await artifactSection(page, "Extraction");
   await expect(
     reloadedExtraction.getByLabel("Method typology")
   ).toHaveValue("Analytical pathway: human-in-the-loop LLM coding.");
@@ -175,7 +175,7 @@ test("saves and reloads extraction notes with attached evidence", async ({ page 
 test("routes captured evidence from the tray into an extraction field", async ({ page }) => {
   await page.goto("/");
 
-  await page.getByRole("button", { name: "Save selection" }).click();
+  await saveFirstMarkdownSelection(page);
   await expect(page.getByText("1 evidence item(s) ready.")).toBeVisible();
 
   await page
@@ -183,7 +183,7 @@ test("routes captured evidence from the tray into an extraction field", async ({
     .selectOption("extraction.evaluationPractices");
   await page.getByRole("button", { name: "Send evidence to field" }).click();
 
-  const extraction = artifactSection(page, "Extraction");
+  const extraction = await artifactSection(page, "Extraction");
   await expect(extraction.getByLabel("Evaluation practices")).toHaveValue(
     /Abstract: This synthetic paper is included only to test the reader/
   );
@@ -194,7 +194,7 @@ test("routes captured evidence from the tray into an extraction field", async ({
 
   await page.reload();
 
-  const reloadedExtraction = artifactSection(page, "Extraction");
+  const reloadedExtraction = await artifactSection(page, "Extraction");
   await expect(reloadedExtraction.getByLabel("Evaluation practices")).toHaveValue(
     /Abstract: This synthetic paper is included only to test the reader/
   );
@@ -205,7 +205,7 @@ test("exports a review material packet with evidence, screening, and extraction 
 }) => {
   await page.goto("/");
 
-  await page.getByRole("button", { name: "Save selection" }).click();
+  await saveFirstMarkdownSelection(page);
   await expect(page.getByText("1 evidence item(s) ready.")).toBeVisible();
   await page
     .getByLabel("PDF verification note 1: Abstract")
@@ -215,7 +215,7 @@ test("exports a review material packet with evidence, screening, and extraction 
     page.getByText("PDF verification note: Verified in PDF p. 1; markdown conversion checked.")
   ).toBeVisible();
 
-  const screening = artifactSection(page, "Screening");
+  const screening = await artifactSection(page, "Screening");
   await page.getByLabel("Decision").selectOption("include");
   await screening.getByRole("button", { name: "Attach latest evidence" }).click();
   await page.getByLabel("Reviewer", { exact: true }).fill("YZ");
@@ -223,7 +223,7 @@ test("exports a review material packet with evidence, screening, and extraction 
   await page.getByRole("button", { name: "Save screening" }).click();
   await expect(screening.getByText("Screening saved")).toBeVisible();
 
-  const extraction = artifactSection(page, "Extraction");
+  const extraction = await artifactSection(page, "Extraction");
   await extraction
     .getByLabel("Method typology")
     .fill("Analytical pathway: human-in-the-loop LLM coding.");
@@ -233,7 +233,7 @@ test("exports a review material packet with evidence, screening, and extraction 
   await extraction.getByRole("button", { name: "Save extraction" }).click();
   await expect(extraction.getByText("Extraction saved")).toBeVisible();
 
-  const reviewMaterial = artifactSection(page, "Review material");
+  const reviewMaterial = await artifactSection(page, "Review material");
   await reviewMaterial.getByRole("button", { name: "Export review material" }).click();
   await expect(reviewMaterial.getByText("Exported 1 evidence item(s).")).toBeVisible();
   await expect(reviewMaterial.getByText(e2eReviewMaterialPath)).toBeVisible();
@@ -250,12 +250,25 @@ test("exports a review material packet with evidence, screening, and extraction 
   );
 });
 
-function artifactSection(page: Page, title: string) {
-  return page.locator("section", {
-    has: page.locator("> h3", { hasText: new RegExp(`^${escapeRegExp(title)}$`) })
+async function saveFirstMarkdownSelection(page: Page) {
+  const paragraph = page.getByText("This synthetic paper is included only to test the reader.");
+  await paragraph.evaluate((node) => {
+    const range = document.createRange();
+    range.selectNodeContents(node);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    node.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
   });
+  await page.getByRole("button", { name: "Save evidence" }).click();
 }
 
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+async function artifactSection(page: Page, title: string) {
+  const section = page.locator("details.workspace-artifact", {
+    has: page.getByRole("heading", { name: title })
+  });
+  if (!(await section.evaluate((node) => node.hasAttribute("open")))) {
+    await section.locator("summary").click();
+  }
+  return section;
 }

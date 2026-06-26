@@ -1,4 +1,6 @@
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 
 export const requiredFiles = [
@@ -20,6 +22,8 @@ export const requiredFiles = [
   "app/globals.css",
   "app/api/evidence/route.ts",
   "app/api/health/route.ts",
+  "app/api/corpus-config/route.ts",
+  "app/api/corpus-config/source-file/route.ts",
   "app/api/model-config/route.ts",
   "app/api/model-config/test/route.ts",
   "app/api/papers/[recordId]/ask/route.ts",
@@ -31,21 +35,26 @@ export const requiredFiles = [
   "app/api/papers/[recordId]/route.ts",
   "app/api/papers/[recordId]/screening/route.ts",
   "app/api/papers/route.ts",
+  "app/api/translate/route.ts",
   "components/AppShell.tsx",
   "components/ArtifactView.tsx",
   "components/AskPanel.tsx",
+  "components/BriefPanel.tsx",
+  "components/CorpusSetup.tsx",
   "components/EvidenceTray.tsx",
   "components/ExtractionForm.tsx",
+  "components/InfoHint.tsx",
   "components/MarkdownReader.tsx",
   "components/ModelSourceControl.tsx",
   "components/PaperQueue.tsx",
-  "components/PayloadScopeBanner.tsx",
   "components/PdfReader.tsx",
   "components/ReaderShell.tsx",
   "components/ReviewMaterialExport.tsx",
   "components/ReviewWorkspace.tsx",
+  "components/SelectionAssistant.tsx",
   "components/ScreeningForm.tsx",
   "lib/server/config.ts",
+  "lib/server/corpusConfig.ts",
   "lib/server/csvStore.ts",
   "lib/server/sourceRegistry.ts",
   "lib/server/sqliteStore.ts",
@@ -56,6 +65,7 @@ export const requiredFiles = [
   "lib/server/portableBox.ts",
   "lib/server/reviewExport.ts",
   "lib/server/screening.ts",
+  "lib/server/translation.ts",
   "lib/types.ts",
   "migrations/001_initial.sql",
   "sample-data/review_data/full_text_screening.csv",
@@ -63,6 +73,7 @@ export const requiredFiles = [
   "sample-data/papers_md/FT0001_sample.md",
   "sample-data/papers_pdf/README.md",
   "tests/server/config.test.ts",
+  "tests/server/corpusConfig.test.ts",
   "tests/server/evidence.test.ts",
   "tests/server/extraction.test.ts",
   "tests/server/llmAsk.test.ts",
@@ -73,15 +84,20 @@ export const requiredFiles = [
   "tests/server/reviewExport.test.ts",
   "tests/server/screening.test.ts",
   "tests/server/sourceRegistry.test.ts",
+  "tests/server/translation.test.ts",
   "tests/client/AskPanel.test.tsx",
   "tests/client/AppShell.test.tsx",
+  "tests/client/CorpusSetup.test.tsx",
   "tests/client/ScreeningForm.test.tsx",
   "tests/client/EvidenceTray.test.tsx",
   "tests/client/ExtractionForm.test.tsx",
+  "tests/client/InfoHint.test.tsx",
   "tests/client/MarkdownReader.test.tsx",
   "tests/client/ModelSourceControl.test.tsx",
   "tests/client/PaperQueue.test.tsx",
+  "tests/client/PdfReader.test.tsx",
   "tests/client/ReviewMaterialExport.test.tsx",
+  "tests/client/ReviewWorkspace.test.tsx",
   "tests/setup.ts",
   "scripts/pack-portable.mjs",
   "scripts/portable-check.mjs",
@@ -89,6 +105,7 @@ export const requiredFiles = [
   "scripts/portable-smoke-core.mjs",
   "scripts/portable-smoke-core.d.mts",
   "scripts/portable-core.mjs",
+  "scripts/opus_mt_translate_server.py",
   "tests/e2e/reader.spec.ts",
   "scripts/portable-core.d.mts"
 ];
@@ -99,6 +116,7 @@ export const requiredPackageScripts = [
   "lint",
   "test",
   "e2e",
+  "translate:opus",
   "portable:check",
   "portable:pack",
   "portable:smoke"
@@ -125,6 +143,7 @@ const scannableExtensions = new Set([
   ".json",
   ".md",
   ".mjs",
+  ".py",
   ".sql",
   ".ts",
   ".tsx",
@@ -210,6 +229,27 @@ export function listPortableFiles(appRoot, options = {}) {
 
   walk(root);
   return result.sort();
+}
+
+export function createPortableArchive(appRoot, archivePath, appFolderName = "paper-lens-workbench") {
+  const root = path.resolve(appRoot);
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "paper-lens-pack-"));
+  const stagedAppRoot = path.join(tempRoot, appFolderName);
+
+  try {
+    for (const relativePath of listPortableFiles(root)) {
+      const target = path.join(stagedAppRoot, relativePath);
+      fs.mkdirSync(path.dirname(target), { recursive: true });
+      fs.copyFileSync(path.join(root, relativePath), target);
+    }
+
+    fs.mkdirSync(path.dirname(archivePath), { recursive: true });
+    return spawnSync("tar", ["-czf", archivePath, "-C", tempRoot, appFolderName], {
+      encoding: "utf8"
+    });
+  } finally {
+    fs.rmSync(tempRoot, { force: true, recursive: true });
+  }
 }
 
 function shouldIgnoreFile(relativePath, basename) {

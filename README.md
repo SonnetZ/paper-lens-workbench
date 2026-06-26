@@ -103,6 +103,19 @@ choose Local or Online without rewriting `.env.local`.
 The app currently sends only reviewer-selected evidence packets to Local or
 Online models. Full-paper model calls remain blocked.
 
+## Selection Translation
+
+Start the default local English-to-Chinese translator in a second terminal:
+
+```bash
+npm run translate:opus
+```
+
+Select text in Markdown or PDF, then click `Translate selection`. The default
+provider calls `Helsinki-NLP/opus-mt-en-zh` through
+`TRANSLATION_OPUS_BASE_URL`; the same popup can switch to the configured Local
+or Online LLM.
+
 ## Health Check
 
 After starting the app, `GET /api/health` should return:

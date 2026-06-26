@@ -5,6 +5,7 @@ dist/
 playwright-report/
 test-results/
 output/
+exports/
 reader.sqlite
 *.sqlite
 *.sqlite3
