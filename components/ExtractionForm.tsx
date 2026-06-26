@@ -185,7 +185,7 @@ export function ExtractionForm({
           <label htmlFor="extraction-evidence-locator" className="text-xs font-semibold">
             Extraction evidence locator (MD/PDF)
           </label>
-          <InfoHint label="Use the MD heading or PDF page locator from the evidence tray so the extracted note stays auditable." />
+          <InfoHint label="Use an MD heading, PDF page, or Evidence tray locator so this extraction note can be traced back to the source." />
         </div>
         <input
           id="extraction-evidence-locator"
@@ -220,7 +220,7 @@ export function ExtractionForm({
           onClick={attachLatestEvidence}
           disabled={!latestEvidence}
           className="workbench-button self-end"
-          title="Insert the newest evidence packet from the tray into the selected extraction field."
+          title="Insert the newest Evidence tray item into the selected extraction field."
         >
           <LinkSimple aria-hidden="true" size={14} weight="bold" />
           Attach latest

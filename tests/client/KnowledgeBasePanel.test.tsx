@@ -25,7 +25,7 @@ const paper: PaperListItem = {
 describe("KnowledgeBasePanel", () => {
   it("keeps the reader usable when the status response is malformed", async () => {
     const fetchMock = vi.fn(async (url: string) => {
-      if (url === "/api/knowledge-base") {
+      if (String(url).startsWith("/api/knowledge-base")) {
         return Response.json({ content: "" });
       }
       return Response.json({}, { status: 404 });
@@ -41,9 +41,20 @@ describe("KnowledgeBasePanel", () => {
 
   it("builds paper and artifact knowledge, then searches the local knowledge base", async () => {
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
-      if (url === "/api/knowledge-base" && !init) {
+      if (String(url).startsWith("/api/knowledge-base") && !init) {
         return Response.json({
+          bases: [
+            {
+              id: "default",
+              name: "Default review",
+              documentCount: 0,
+              chunkCount: 0,
+              updatedAt: null
+            }
+          ],
           status: {
+            knowledgeBaseId: "default",
+            knowledgeBaseName: "Default review",
             documentCount: 0,
             chunkCount: 0,
             paperDocumentCount: 0,
@@ -56,8 +67,19 @@ describe("KnowledgeBasePanel", () => {
       }
       if (url === "/api/papers/FT0001/knowledge" && init?.method === "POST") {
         return Response.json({
+          bases: [
+            {
+              id: "default",
+              name: "Default review",
+              documentCount: 2,
+              chunkCount: 5,
+              updatedAt: "2026-06-24T00:00:00.000Z"
+            }
+          ],
           ingested: { documentCount: 2, chunkCount: 5, embeddingModel: "portable-hash-v1" },
           status: {
+            knowledgeBaseId: "default",
+            knowledgeBaseName: "Default review",
             documentCount: 2,
             chunkCount: 5,
             paperDocumentCount: 1,
@@ -97,7 +119,11 @@ describe("KnowledgeBasePanel", () => {
         "/api/papers/FT0001/knowledge",
         expect.objectContaining({
           method: "POST",
-          body: JSON.stringify({ includePaper: true, includeArtifacts: false })
+          body: JSON.stringify({
+            includePaper: true,
+            includeArtifacts: false,
+            knowledgeBaseId: "default"
+          })
         })
       )
     );
@@ -109,4 +135,88 @@ describe("KnowledgeBasePanel", () => {
     expect(await screen.findByText("Methods")).toBeInTheDocument();
     expect(screen.getByText(/human-in-the-loop coding/)).toBeInTheDocument();
   });
+
+  it("creates and uses a separate review knowledge base", async () => {
+    const onKnowledgeBaseChange = vi.fn();
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      if (String(url).startsWith("/api/knowledge-base") && !init) {
+        return Response.json({
+          bases: [
+            {
+              id: "default",
+              name: "Default review",
+              documentCount: 0,
+              chunkCount: 0,
+              updatedAt: null
+            }
+          ],
+          status: status("default", "Default review", 0)
+        });
+      }
+      if (url === "/api/knowledge-base" && init?.method === "POST") {
+        const body = JSON.parse(String(init.body));
+        if (body.action === "create") {
+          return Response.json({
+            base: {
+              id: "kb_scope",
+              name: "Scoping review A",
+              documentCount: 0,
+              chunkCount: 0,
+              updatedAt: "2026-06-27T00:00:00.000Z"
+            },
+            bases: [
+              {
+                id: "default",
+                name: "Default review",
+                documentCount: 0,
+                chunkCount: 0,
+                updatedAt: null
+              },
+              {
+                id: "kb_scope",
+                name: "Scoping review A",
+                documentCount: 0,
+                chunkCount: 0,
+                updatedAt: "2026-06-27T00:00:00.000Z"
+              }
+            ],
+            status: status("kb_scope", "Scoping review A", 0)
+          });
+        }
+        return Response.json({
+          bases: [],
+          ingested: { documentCount: 1, chunkCount: 3, embeddingModel: "portable-hash-v1" },
+          status: status("kb_scope", "Scoping review A", 3)
+        });
+      }
+      return Response.json({}, { status: 404 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <KnowledgeBasePanel
+        paper={paper}
+        selectedKnowledgeBaseId="default"
+        onKnowledgeBaseChange={onKnowledgeBaseChange}
+      />
+    );
+
+    await userEvent.type(await screen.findByLabelText("New knowledge base name"), "Scoping review A");
+    await userEvent.click(screen.getByRole("button", { name: "Create knowledge base" }));
+    await waitFor(() => expect(onKnowledgeBaseChange).toHaveBeenCalledWith("kb_scope"));
+  });
 });
+
+function status(knowledgeBaseId: string, knowledgeBaseName: string, chunkCount: number) {
+  return {
+    knowledgeBaseId,
+    knowledgeBaseName,
+    documentCount: chunkCount ? 1 : 0,
+    chunkCount,
+    paperDocumentCount: chunkCount ? 1 : 0,
+    artifactDocumentCount: 0,
+    evidenceDocumentCount: 0,
+    embeddingModel: "portable-hash-v1",
+    updatedAt: chunkCount ? "2026-06-27T00:00:00.000Z" : null
+  };
+}

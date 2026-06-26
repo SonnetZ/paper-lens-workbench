@@ -79,4 +79,19 @@ describe("PaperQueue", () => {
     expect(screen.queryByText("Sample AI-assisted interview analysis")).not.toBeInTheDocument();
     expect(screen.getByText("1 of 2 records")).toBeInTheDocument();
   });
+
+  it("labels the collapsed paper list clearly", () => {
+    render(
+      <PaperQueue
+        papers={papers}
+        selectedRecordId={null}
+        collapsed
+        onSelect={vi.fn()}
+        onCorpusApplied={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText("Queue")).toBeInTheDocument();
+    expect(screen.getByText("2 records")).toBeInTheDocument();
+  });
 });

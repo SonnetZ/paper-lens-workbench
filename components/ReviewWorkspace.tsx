@@ -22,6 +22,8 @@ export function ReviewWorkspace({
   evidenceRoute,
   modelSettings,
   onModelSettingsChange,
+  knowledgeBaseId = "default",
+  onKnowledgeBaseChange,
   collapsed = false,
   onCollapsedChange
 }: {
@@ -30,6 +32,8 @@ export function ReviewWorkspace({
   evidenceRoute?: EvidenceRouteEvent | null;
   modelSettings: RuntimeModelSettings;
   onModelSettingsChange: (settings: RuntimeModelSettings) => void;
+  knowledgeBaseId?: string;
+  onKnowledgeBaseChange?: (knowledgeBaseId: string) => void;
   collapsed?: boolean;
   onCollapsedChange?: (collapsed: boolean) => void;
 }) {
@@ -82,7 +86,12 @@ export function ReviewWorkspace({
             info="Ask a question from attached evidence or from the local knowledge base. It will not send the full paper."
             storageKey="review-workspace:ask"
           >
-            <AskPanel paper={paper} evidence={evidence} modelSettings={modelSettings} />
+            <AskPanel
+              paper={paper}
+              evidence={evidence}
+              modelSettings={modelSettings}
+              knowledgeBaseId={knowledgeBaseId}
+            />
           </ArtifactView>
           <ArtifactView
             title="Brief"
@@ -95,11 +104,15 @@ export function ReviewWorkspace({
 
         <WorkspaceGroup title="Corpus">
           <ArtifactView
-            title="Knowledge base"
-            info="Index papers and saved review notes, then search them for evidence-aware reading support."
+            title="Knowledge"
+            info="Select a knowledge base and search its contents. All review knowledge operations use the selected base."
             storageKey="review-workspace:knowledge-base"
           >
-            <KnowledgeBasePanel paper={paper} />
+            <KnowledgeBasePanel
+              paper={paper}
+              selectedKnowledgeBaseId={knowledgeBaseId}
+              onKnowledgeBaseChange={onKnowledgeBaseChange}
+            />
           </ArtifactView>
         </WorkspaceGroup>
 

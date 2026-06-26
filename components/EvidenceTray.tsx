@@ -163,6 +163,9 @@ export function EvidenceTray({
         </div>
       </div>
       <div className="evidence-list">
+        <h3 className="mb-2 font-mono text-[11px] font-semibold uppercase text-swiss-muted">
+          Saved evidence
+        </h3>
         {evidence.length === 0 ? (
         <p className="text-sm text-swiss-muted">No evidence yet.</p>
         ) : (

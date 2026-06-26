@@ -1,6 +1,6 @@
 "use client";
 
-import { CaretLeft, CaretRight } from "@phosphor-icons/react";
+import { CaretLeft, CaretRight, MagnifyingGlass } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
 import type { PaperListItem } from "@/lib/types";
 import { CorpusSetup } from "@/components/CorpusSetup";
@@ -61,7 +61,8 @@ export function PaperQueue({
           className="paper-queue-collapse-button"
         >
           <CaretRight aria-hidden="true" weight="bold" className="size-4" />
-          <span className="paper-queue-collapsed-count">{papers.length}</span>
+          <span className="paper-queue-collapsed-label">Queue</span>
+          <span className="paper-queue-collapsed-count">{papers.length} records</span>
         </button>
       ) : null}
       {collapsed ? null : (
@@ -80,16 +81,22 @@ export function PaperQueue({
       <div className="border-b border-swiss-rule px-4 py-3">
         <h2 className="text-sm font-semibold">Review queue</h2>
         <p className="mt-1 font-mono text-xs text-swiss-muted">{queueCount}</p>
-        <label htmlFor="review-queue-search" className="mt-3 block text-xs font-semibold">
-          Search review queue
-        </label>
-        <input
-          id="review-queue-search"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          className="mt-1 w-full border border-swiss-rule bg-white px-2 py-1.5 text-sm"
-          placeholder="Record ID, title, filename"
-        />
+        <div className="relative mt-3">
+          <MagnifyingGlass
+            aria-hidden="true"
+            size={14}
+            weight="bold"
+            className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-swiss-muted"
+          />
+          <input
+            id="review-queue-search"
+            aria-label="Search review queue"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            className="w-full border border-swiss-rule bg-white py-1.5 pl-7 pr-2 text-sm"
+            placeholder="Record ID, title, filename"
+          />
+        </div>
       </div>
       <div className="max-h-[calc(100dvh-370px)] overflow-auto">
         {filteredPapers.map((paper) => (

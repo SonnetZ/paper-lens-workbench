@@ -34,6 +34,7 @@ export function AppShell({ initialPapers }: Props) {
   const [evidenceRoute, setEvidenceRoute] = useState<EvidenceRouteEvent | null>(null);
   const [paperQueueCollapsed, setPaperQueueCollapsed] = useState(false);
   const [reviewWorkspaceCollapsed, setReviewWorkspaceCollapsed] = useState(false);
+  const [knowledgeBaseId, setKnowledgeBaseId] = useState("default");
   const [evidenceStatus, setEvidenceStatus] = useState<"idle" | "loading" | "saving" | "error">(
     "idle"
   );
@@ -201,6 +202,8 @@ export function AppShell({ initialPapers }: Props) {
         evidenceRoute={evidenceRoute}
         modelSettings={modelSettings}
         onModelSettingsChange={setModelSettings}
+        knowledgeBaseId={knowledgeBaseId}
+        onKnowledgeBaseChange={setKnowledgeBaseId}
         collapsed={reviewWorkspaceCollapsed}
         onCollapsedChange={setReviewWorkspaceCollapsed}
       />

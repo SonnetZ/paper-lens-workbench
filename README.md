@@ -97,11 +97,25 @@ choose Local or Online without rewriting `.env.local`.
   sent only to this local server for the scoped request and is not written to
   disk.
 - Online environment key: set `ONLINE_LLM_API_KEY` in `.env.local`.
-- Online CC switch: uses the Codex auth file managed by `cc-switch` or Codex
-  at `CODEX_HOME/auth.json`, falling back to `~/.codex/auth.json`.
+- Online CC switch / Codex config: reads OpenAI-compatible settings visible to
+  the Paper Lens server process: `ONLINE_LLM_*`, `CODEX_HOME/config.toml`, and a
+  string API key in `CODEX_HOME/auth.json` or `~/.codex/auth.json`. It cannot use
+  the hidden auth token from this Codex chat session.
 
-The app currently sends only reviewer-selected evidence packets to Local or
-Online models. Full-paper model calls remain blocked.
+The app sends only reviewer-selected evidence packets or retrieved knowledge
+base chunks to Local or Online models. Full-paper model calls remain blocked.
+
+## Knowledge Bases
+
+The Corpus `Knowledge base` card supports multiple named RAG indexes in the
+same local SQLite database. Create one knowledge base per review project, select
+it, then add paper text, current-paper review artifacts, or included-paper review
+outputs. `Knowledge search` and AI Help `Ask` use the currently selected
+knowledge base.
+
+Example: create `Scoping review A`, add included review outputs, search
+`prompt transparency`, then switch to `Scoping review B`. Results from A will not
+appear in B unless you add them there too.
 
 ## Selection Translation
 

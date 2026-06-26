@@ -70,6 +70,7 @@ describe("EvidenceTray", () => {
 
     expect(tray).not.toHaveClass("evidence-tray-collapsed");
     expect(screen.getByLabelText("Reviewer note")).toBeInTheDocument();
+    expect(screen.getByText("Saved evidence")).toBeInTheDocument();
   });
 
   it("saves a PDF verification note for a saved evidence packet", async () => {

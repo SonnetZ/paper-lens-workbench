@@ -7,9 +7,11 @@ import { saveEvidencePacket } from "@/lib/server/evidence";
 import { saveExtractionArtifact } from "@/lib/server/extraction";
 import { openReaderDb } from "@/lib/server/sqliteStore";
 import {
+  createKnowledgeBase,
   getKnowledgeBaseStatus,
   ingestPaperMarkdown,
   ingestReviewArtifacts,
+  listKnowledgeBases,
   searchKnowledgeBase
 } from "@/lib/server/knowledgeBase";
 
@@ -71,6 +73,7 @@ describe("knowledge base", () => {
     db.close();
 
     expect(tables.map((table) => table.name).sort()).toEqual([
+      "knowledge_bases",
       "knowledge_chunks",
       "knowledge_documents"
     ]);
@@ -88,6 +91,7 @@ describe("knowledge base", () => {
     expect(second.documentCount).toBe(1);
     expect(status.documentCount).toBe(1);
     expect(status.chunkCount).toBe(first.chunkCount);
+    expect(status.knowledgeBaseName).toBe("Default review");
     expect(status.embeddingModel).toBe("portable-hash-v1");
   });
 
@@ -133,5 +137,28 @@ describe("knowledge base", () => {
     expect(result.chunkCount).toBeGreaterThanOrEqual(2);
     expect(search.map((item) => item.sourceKind)).toContain("artifact");
     expect(search.map((item) => item.sourceKind)).toContain("evidence");
+  });
+
+  it("keeps separate review knowledge bases from sharing retrieval results", async () => {
+    const config = await makeConfig();
+    const base = createKnowledgeBase(config, "Scoping review A");
+
+    await ingestPaperMarkdown(config, "FT0001");
+    await ingestPaperMarkdown(config, "FT0001", base.id);
+
+    const defaultStatus = getKnowledgeBaseStatus(config);
+    const scopedStatus = getKnowledgeBaseStatus(config, base.id);
+    const defaultResults = searchKnowledgeBase(config, "prompt template", {
+      knowledgeBaseId: "default"
+    });
+    const scopedResults = searchKnowledgeBase(config, "prompt template", {
+      knowledgeBaseId: base.id
+    });
+
+    expect(listKnowledgeBases(config).map((item) => item.name)).toContain("Scoping review A");
+    expect(defaultStatus.documentCount).toBe(1);
+    expect(scopedStatus.documentCount).toBe(1);
+    expect(defaultResults[0].documentId).not.toBe(scopedResults[0].documentId);
+    expect(scopedResults[0].recordId).toBe("FT0001");
   });
 });

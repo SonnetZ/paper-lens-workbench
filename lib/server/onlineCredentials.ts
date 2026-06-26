@@ -50,10 +50,24 @@ function readCodexAuthApiKey(env: Record<string, string | undefined>): string | 
     const parsed = JSON.parse(fs.readFileSync(authPath, "utf-8")) as {
       OPENAI_API_KEY?: unknown;
     };
-    return typeof parsed.OPENAI_API_KEY === "string" ? nonEmpty(parsed.OPENAI_API_KEY) : undefined;
+    return readApiKeyValue(parsed.OPENAI_API_KEY);
   } catch {
     return undefined;
   }
+}
+
+function readApiKeyValue(value: unknown): string | undefined {
+  if (typeof value === "string") return nonEmpty(value);
+  if (!value || typeof value !== "object") return undefined;
+  const record = value as Record<string, unknown>;
+  for (const key of ["value", "apiKey", "api_key", "OPENAI_API_KEY"]) {
+    const candidate = record[key];
+    if (typeof candidate === "string") {
+      const apiKey = nonEmpty(candidate);
+      if (apiKey) return apiKey;
+    }
+  }
+  return undefined;
 }
 
 function readCodexConfig(env: Record<string, string | undefined>): {

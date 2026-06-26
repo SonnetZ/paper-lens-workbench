@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { ModelSource, RuntimeModelSettings } from "@/lib/types";
+import { InfoHint } from "@/components/InfoHint";
 
 interface RedactedModelConfig {
   activeMode: RuntimeModelSettings["mode"];
@@ -234,9 +235,12 @@ export function ModelSourceControl({
       {expanded && activeMode === "online" ? (
         <div className="mt-3 grid gap-2 border-t border-swiss-rule pt-3">
           <div className="grid gap-1.5">
-            <label htmlFor="online-credential-source" className="text-xs font-semibold">
-              Credential source
-            </label>
+            <div className="flex items-center gap-1">
+              <label htmlFor="online-credential-source" className="text-xs font-semibold">
+                Credential source
+              </label>
+              <InfoHint label="Configured environment reads ONLINE_LLM_* from the Paper Lens server process. Codex config reads ~/.codex/config.toml and a string OpenAI-compatible API key from ~/.codex/auth.json; it cannot use this chat session's hidden auth token." />
+            </div>
             <select
               id="online-credential-source"
               value={onlineConfigSource}

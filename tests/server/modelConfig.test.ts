@@ -98,6 +98,21 @@ describe("model config safety", () => {
     rmSync(tempCodexHome, { recursive: true, force: true });
   });
 
+  it("reads a nested OpenAI-compatible API key from Codex auth when present", () => {
+    const tempCodexHome = path.join(os.tmpdir(), `reader-codex-nested-auth-${Date.now()}`);
+    mkdirSync(tempCodexHome, { recursive: true });
+    writeFileSync(
+      path.join(tempCodexHome, "auth.json"),
+      JSON.stringify({ OPENAI_API_KEY: { value: "nested-secret" } })
+    );
+    process.env.CODEX_HOME = tempCodexHome;
+
+    const provider = resolveConfiguredOnlineProvider();
+
+    expect(provider.apiKey).toBe("nested-secret");
+    rmSync(tempCodexHome, { recursive: true, force: true });
+  });
+
   it("tests online OpenAI-compatible models without exposing credentials", async () => {
     const fetchImpl = vi.fn(
       async (_url: string, init?: RequestInit) =>

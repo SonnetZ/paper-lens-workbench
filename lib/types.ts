@@ -147,6 +147,7 @@ export interface ScopedAskInput {
   question: string;
   payloadScope: PayloadScope;
   evidence: EvidencePacket[];
+  knowledgeBaseId?: string;
   modelSettings?: RuntimeModelSettings;
 }
 
@@ -159,12 +160,22 @@ export interface ScopedAskAnswer {
 }
 
 export interface KnowledgeBaseStatus {
+  knowledgeBaseId: string;
+  knowledgeBaseName: string;
   documentCount: number;
   chunkCount: number;
   paperDocumentCount: number;
   artifactDocumentCount: number;
   evidenceDocumentCount: number;
   embeddingModel: string;
+  updatedAt: string | null;
+}
+
+export interface KnowledgeBaseSummary {
+  id: string;
+  name: string;
+  documentCount: number;
+  chunkCount: number;
   updatedAt: string | null;
 }
 

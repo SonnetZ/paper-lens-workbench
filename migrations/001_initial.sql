@@ -31,8 +31,19 @@ CREATE TABLE IF NOT EXISTS extraction_artifacts (
   updated_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS knowledge_bases (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+INSERT OR IGNORE INTO knowledge_bases (id, name, created_at, updated_at)
+VALUES ('default', 'Default review', datetime('now'), datetime('now'));
+
 CREATE TABLE IF NOT EXISTS knowledge_documents (
   id TEXT PRIMARY KEY,
+  knowledge_base_id TEXT NOT NULL DEFAULT 'default',
   record_id TEXT NOT NULL,
   source_kind TEXT NOT NULL,
   source_id TEXT NOT NULL,
@@ -41,7 +52,8 @@ CREATE TABLE IF NOT EXISTS knowledge_documents (
   embedding_model TEXT NOT NULL,
   content_hash TEXT NOT NULL,
   updated_at TEXT NOT NULL,
-  UNIQUE(record_id, source_kind, source_id)
+  UNIQUE(knowledge_base_id, record_id, source_kind, source_id),
+  FOREIGN KEY(knowledge_base_id) REFERENCES knowledge_bases(id) ON DELETE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS idx_knowledge_documents_record_id
@@ -49,6 +61,7 @@ ON knowledge_documents(record_id);
 
 CREATE TABLE IF NOT EXISTS knowledge_chunks (
   id TEXT PRIMARY KEY,
+  knowledge_base_id TEXT NOT NULL DEFAULT 'default',
   document_id TEXT NOT NULL,
   record_id TEXT NOT NULL,
   source_kind TEXT NOT NULL,
@@ -60,6 +73,7 @@ CREATE TABLE IF NOT EXISTS knowledge_chunks (
   embedding_model TEXT NOT NULL,
   embedding_json TEXT NOT NULL,
   created_at TEXT NOT NULL,
+  FOREIGN KEY(knowledge_base_id) REFERENCES knowledge_bases(id) ON DELETE CASCADE,
   FOREIGN KEY(document_id) REFERENCES knowledge_documents(id) ON DELETE CASCADE
 );
 

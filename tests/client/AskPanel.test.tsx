@@ -115,7 +115,7 @@ describe("AskPanel", () => {
     await userEvent.selectOptions(screen.getByLabelText("Payload scope"), "Corpus retrieval");
     expect(
       screen.getByRole("button", {
-        name: "Search the local knowledge base and answer from retrieved chunks."
+        name: "Search the selected knowledge base and answer from retrieved chunks."
       })
     ).toBeInTheDocument();
     await userEvent.type(screen.getByLabelText("Question"), "Does the paper disclose prompts?");
@@ -125,7 +125,8 @@ describe("AskPanel", () => {
     expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toMatchObject({
       question: "Does the paper disclose prompts?",
       payloadScope: "Corpus retrieval",
-      evidence: []
+      evidence: [],
+      knowledgeBaseId: "default"
     });
     expect(await screen.findByText(/Retrieved chunks support/)).toBeInTheDocument();
     expect(screen.getByText("FT0001 / Methods")).toBeInTheDocument();

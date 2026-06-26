@@ -213,7 +213,7 @@ export function ScreeningForm({
           <label htmlFor="evidence-locator" className="text-xs font-semibold">
             Screening evidence locator (MD/PDF)
           </label>
-          <InfoHint label="Use a heading, PDF page, or tray evidence locator that lets you find the cited text again." />
+          <InfoHint label="Attach latest copies the newest item from Evidence tray into this screening rationale and locator field. You can also type an MD heading, PDF page, or tray locator manually." />
         </div>
         <div className="grid grid-cols-[1fr_auto] gap-2">
           <input
@@ -229,7 +229,7 @@ export function ScreeningForm({
             onClick={attachLatestEvidence}
             disabled={!latestEvidence}
             className="workbench-button"
-            title="Insert the newest evidence packet from the tray."
+            title="Insert the newest Evidence tray item into the rationale and locator."
           >
             <LinkSimple aria-hidden="true" size={14} weight="bold" />
             Attach latest

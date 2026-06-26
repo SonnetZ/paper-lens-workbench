@@ -14,11 +14,13 @@ import { InfoHint } from "@/components/InfoHint";
 export function AskPanel({
   paper,
   evidence,
-  modelSettings
+  modelSettings,
+  knowledgeBaseId = "default"
 }: {
   paper: PaperListItem | null;
   evidence: EvidencePacket[];
   modelSettings?: RuntimeModelSettings;
+  knowledgeBaseId?: string;
 }) {
   const [question, setQuestion] = useState("");
   const [payloadScope, setPayloadScope] = useState<PayloadScope>("Selection");
@@ -34,10 +36,10 @@ export function AskPanel({
       question.trim() &&
       (payloadScope === "Corpus retrieval" || currentEvidence.length > 0)
   );
-  const scopeDescription =
-    payloadScope === "Corpus retrieval"
-      ? "Search the local knowledge base and answer from retrieved chunks."
-      : "Answer only from evidence packets attached in the tray.";
+	  const scopeDescription =
+	    payloadScope === "Corpus retrieval"
+	      ? "Search the selected knowledge base and answer from retrieved chunks."
+	      : "Answer only from evidence packets attached in the tray.";
 
   const ask = async () => {
     if (!paper || !canAsk) return;
@@ -49,11 +51,12 @@ export function AskPanel({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          question: question.trim(),
-          payloadScope,
-          evidence: currentEvidence,
-          modelSettings
-        })
+	          question: question.trim(),
+	          payloadScope,
+	          evidence: currentEvidence,
+	          knowledgeBaseId,
+	          modelSettings
+	        })
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "Unable to answer question");
@@ -88,6 +91,7 @@ export function AskPanel({
       </div>
       <p className="workspace-status-line">
         Model: {modelLabel(modelSettings)}
+        {payloadScope === "Corpus retrieval" ? ` / KB: ${knowledgeBaseId}` : ""}
       </p>
       <div className="grid gap-1.5">
         <div className="flex items-center gap-1">

@@ -25,9 +25,20 @@ describe("ReviewWorkspace", () => {
             }
           });
         }
-        if (url === "/api/knowledge-base") {
+        if (String(url).startsWith("/api/knowledge-base")) {
           return Response.json({
+            bases: [
+              {
+                id: "default",
+                name: "Default review",
+                documentCount: 4,
+                chunkCount: 12,
+                updatedAt: null
+              }
+            ],
             status: {
+              knowledgeBaseId: "default",
+              knowledgeBaseName: "Default review",
               documentCount: 4,
               chunkCount: 12,
               paperDocumentCount: 3,

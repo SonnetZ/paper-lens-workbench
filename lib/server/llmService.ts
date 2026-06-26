@@ -56,7 +56,10 @@ export async function answerScopedAsk(
   assertAllowedAskRequest(runtime.config, input);
   const retrievedChunks =
     input.payloadScope === "Corpus retrieval"
-      ? searchKnowledgeBase(config, input.question, { topK: 6 })
+      ? searchKnowledgeBase(config, input.question, {
+          topK: 6,
+          knowledgeBaseId: input.knowledgeBaseId
+        })
       : [];
   if (input.payloadScope === "Corpus retrieval" && retrievedChunks.length === 0) {
     throw new Error("No corpus retrieval results are available for this question");
@@ -228,6 +231,7 @@ function serializeScopedAskInput(
 
   return [
     `record_id: ${input.recordId}`,
+    `knowledge_base_id: ${input.knowledgeBaseId || "default"}`,
     `payload_scope: ${input.payloadScope}`,
     `question: ${input.question.trim()}`,
     "evidence_packets:",

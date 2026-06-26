@@ -177,11 +177,6 @@ export function CorpusSetup({ onCorpusApplied }: { onCorpusApplied: () => void }
             <FolderOpen aria-hidden="true" size={14} weight="bold" />
             Library paths
           </button>
-          <span className="truncate font-mono text-[11px] text-swiss-muted">
-            {validation
-              ? `${validation.summary.markdownFileCount} MD / ${validation.summary.screeningRowCount} rows`
-              : "Paths not loaded"}
-          </span>
           {status !== "idle" ? (
             <span className="font-mono text-[11px] text-swiss-muted">{statusLabel(status)}</span>
           ) : null}
