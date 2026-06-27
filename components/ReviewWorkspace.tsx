@@ -1,6 +1,6 @@
 "use client";
 
-import { CaretLeft, CaretRight } from "@phosphor-icons/react";
+import { CaretDown, CaretLeft, CaretRight, CaretUp } from "@phosphor-icons/react";
 import type {
   EvidencePacket,
   EvidenceRouteEvent,
@@ -46,7 +46,8 @@ export function ReviewWorkspace({
           onClick={() => onCollapsedChange?.(false)}
           className="review-workspace-collapse-button"
         >
-          <CaretLeft aria-hidden="true" weight="bold" className="size-4" />
+          <CaretDown aria-hidden="true" weight="bold" className="size-4 lg:hidden" />
+          <CaretLeft aria-hidden="true" weight="bold" className="hidden size-4 lg:block" />
           <span className="review-workspace-collapsed-label">Workspace</span>
         </button>
       </aside>
@@ -54,7 +55,7 @@ export function ReviewWorkspace({
   }
 
   return (
-    <aside aria-label="Review workspace" className="min-h-0 overflow-auto bg-swiss-wash md:h-[100dvh]">
+    <aside aria-label="Review workspace" className="min-h-0 overflow-auto bg-swiss-wash lg:h-[100dvh]">
       <header className="flex items-start justify-between gap-3 border-b border-swiss-rule bg-white px-4 py-3">
         <div>
           <h2 className="text-sm font-semibold">Review workspace</h2>
@@ -66,7 +67,8 @@ export function ReviewWorkspace({
           onClick={() => onCollapsedChange?.(true)}
           className="workbench-icon-button workbench-icon-button-sm"
         >
-          <CaretRight aria-hidden="true" weight="bold" className="size-3.5" />
+          <CaretUp aria-hidden="true" weight="bold" className="size-3.5 lg:hidden" />
+          <CaretRight aria-hidden="true" weight="bold" className="hidden size-3.5 lg:block" />
         </button>
       </header>
       <div className="grid gap-5 p-4">
@@ -104,7 +106,7 @@ export function ReviewWorkspace({
 
         <WorkspaceGroup title="Corpus">
           <ArtifactView
-            title="Knowledge"
+            title="Knowledge base"
             info="Select a knowledge base and search its contents. All review knowledge operations use the selected base."
             storageKey="review-workspace:knowledge-base"
           >

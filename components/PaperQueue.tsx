@@ -1,6 +1,6 @@
 "use client";
 
-import { CaretLeft, CaretRight, MagnifyingGlass } from "@phosphor-icons/react";
+import { CaretDown, CaretLeft, CaretRight, CaretUp, MagnifyingGlass } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
 import type { PaperListItem } from "@/lib/types";
 import { CorpusSetup } from "@/components/CorpusSetup";
@@ -50,7 +50,7 @@ export function PaperQueue({
       className={
         collapsed
           ? "paper-queue-collapsed"
-          : "min-h-0 border-r border-swiss-rule bg-swiss-wash md:h-[100dvh] md:overflow-hidden"
+          : "min-h-0 bg-swiss-wash lg:h-[100dvh] lg:overflow-hidden lg:border-r lg:border-swiss-rule"
       }
     >
       {collapsed ? (
@@ -60,7 +60,8 @@ export function PaperQueue({
           onClick={() => onCollapsedChange?.(false)}
           className="paper-queue-collapse-button"
         >
-          <CaretRight aria-hidden="true" weight="bold" className="size-4" />
+          <CaretDown aria-hidden="true" weight="bold" className="size-4 lg:hidden" />
+          <CaretRight aria-hidden="true" weight="bold" className="hidden size-4 lg:block" />
           <span className="paper-queue-collapsed-label">Queue</span>
           <span className="paper-queue-collapsed-count">{papers.length} records</span>
         </button>
@@ -75,7 +76,8 @@ export function PaperQueue({
           onClick={() => onCollapsedChange?.(true)}
           className="workbench-icon-button workbench-icon-button-sm"
         >
-          <CaretLeft aria-hidden="true" weight="bold" className="size-3.5" />
+          <CaretUp aria-hidden="true" weight="bold" className="size-3.5 lg:hidden" />
+          <CaretLeft aria-hidden="true" weight="bold" className="hidden size-3.5 lg:block" />
         </button>
       </div>
       <div className="border-b border-swiss-rule px-4 py-3">

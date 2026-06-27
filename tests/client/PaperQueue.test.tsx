@@ -93,5 +93,8 @@ describe("PaperQueue", () => {
 
     expect(screen.getByText("Queue")).toBeInTheDocument();
     expect(screen.getByText("2 records")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Expand paper list" })).toHaveClass(
+      "paper-queue-collapse-button"
+    );
   });
 });

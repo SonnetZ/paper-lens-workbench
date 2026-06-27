@@ -56,16 +56,16 @@ describe("AppShell evidence persistence", () => {
 
     render(<AppShell initialPapers={papers} />);
 
-    expect(screen.getByRole("main")).toHaveClass("md:h-[100dvh]");
+    expect(screen.getByRole("main")).toHaveClass("lg:h-[100dvh]");
     expect(screen.getByRole("complementary", { name: "Paper queue" })).toHaveClass(
-      "md:h-[100dvh]"
+      "lg:h-[100dvh]"
     );
-    expect(screen.getByLabelText("Reading column")).toHaveClass("md:h-[100dvh]");
+    expect(screen.getByLabelText("Reading column")).toHaveClass("lg:h-[100dvh]");
     expect(screen.getByLabelText("Reading column")).toHaveClass(
       "grid-rows-[minmax(0,1fr)_auto]"
     );
     expect(screen.getByRole("complementary", { name: "Review workspace" })).toHaveClass(
-      "md:h-[100dvh]"
+      "lg:h-[100dvh]"
     );
     expect(screen.getByRole("complementary", { name: "Evidence tray" })).toHaveClass(
       "evidence-tray-expanded"
@@ -115,7 +115,7 @@ describe("AppShell evidence persistence", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Collapse review workspace" }));
     expect(screen.getByRole("button", { name: "Expand review workspace" })).toBeInTheDocument();
-    expect(screen.getByRole("main")).toHaveClass("md:grid-cols-[300px_minmax(0,1fr)_44px]");
+    expect(screen.getByRole("main")).toHaveClass("lg:grid-cols-[300px_minmax(0,1fr)_44px]");
 
     await userEvent.click(screen.getByRole("button", { name: "Expand review workspace" }));
     expect(screen.getByRole("button", { name: "Collapse review workspace" })).toBeInTheDocument();

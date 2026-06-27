@@ -158,14 +158,14 @@ export function AppShell({ initialPapers }: Props) {
 
   return (
     <main
-      className={`grid min-h-[100dvh] grid-cols-1 bg-white text-swiss-ink md:h-[100dvh] md:overflow-hidden ${
+      className={`grid min-h-[100dvh] grid-cols-1 bg-white text-swiss-ink lg:h-[100dvh] lg:overflow-hidden ${
         paperQueueCollapsed
           ? reviewWorkspaceCollapsed
-            ? "md:grid-cols-[44px_minmax(0,1fr)_44px]"
-            : "md:grid-cols-[44px_minmax(0,1fr)_360px]"
+            ? "lg:grid-cols-[44px_minmax(0,1fr)_44px]"
+            : "lg:grid-cols-[44px_minmax(0,1fr)_360px]"
           : reviewWorkspaceCollapsed
-            ? "md:grid-cols-[300px_minmax(0,1fr)_44px]"
-            : "md:grid-cols-[300px_minmax(0,1fr)_360px]"
+            ? "lg:grid-cols-[300px_minmax(0,1fr)_44px]"
+            : "lg:grid-cols-[300px_minmax(0,1fr)_360px]"
       }`}
     >
       <PaperQueue
@@ -178,7 +178,7 @@ export function AppShell({ initialPapers }: Props) {
       />
       <section
         aria-label="Reading column"
-        className="grid min-h-[60dvh] grid-rows-[minmax(0,1fr)_auto] border-r border-swiss-rule md:h-[100dvh] md:min-h-0"
+        className="grid min-h-[70dvh] grid-rows-[minmax(0,1fr)_auto] border-y border-swiss-rule lg:h-[100dvh] lg:min-h-0 lg:border-y-0 lg:border-r"
       >
         <ReaderShell
           paper={selectedPaper}
