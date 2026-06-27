@@ -87,12 +87,12 @@ export function EvidenceTray({
   return (
     <aside
       aria-labelledby="evidence-tray-title"
-      className={`evidence-tray border-t border-swiss-rule bg-swiss-wash px-4 py-3 ${
+      className={`evidence-tray evidence-stack border-t border-swiss-rule bg-swiss-wash px-4 py-3 ${
         collapsed ? "evidence-tray-collapsed" : "evidence-tray-expanded"
       }`}
     >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1.5">
+      <div className="evidence-stack-header flex items-center justify-between">
+        <div className="flex min-w-0 items-center gap-1.5">
           <h2 id="evidence-tray-title" className="text-sm font-semibold">
             Evidence tray
           </h2>
@@ -126,7 +126,7 @@ export function EvidenceTray({
           {statusText}
         </p>
       ) : null}
-      <div className="mt-3 grid gap-2 border-t border-swiss-rule pt-3">
+      <div className="evidence-capture mt-3 grid gap-2 border-t border-swiss-rule pt-3">
         <div className="grid gap-1.5">
           <label htmlFor="manual-evidence-note" className="text-xs font-semibold">
             Reviewer note
@@ -169,13 +169,13 @@ export function EvidenceTray({
         {evidence.length === 0 ? (
         <p className="text-sm text-swiss-muted">No evidence yet.</p>
         ) : (
-        <ol className="grid gap-2">
+        <ol className="evidence-stack-list grid gap-2">
           {evidence.map((item, index) => {
             const pdfVerificationNote =
               pdfVerificationNotesByEvidenceId[item.id] ?? item.pdfVerificationNote;
 
             return (
-              <li key={item.id} className="evidence-card">
+              <li key={item.id} className="evidence-card evidence-stack-card">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="font-mono text-xs text-swiss-red">{item.evidenceLocator}</p>

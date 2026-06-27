@@ -66,6 +66,21 @@ export function ModelSourceControl({
         setConfig(data.config);
         setStatus("idle");
         if (data.config.local.baseUrl) setLocalPort(portFromBaseUrl(data.config.local.baseUrl));
+        setDraft((current) => {
+          if (
+            current.onlineConfigSource === "manual" &&
+            !current.onlineApiKey &&
+            data.config.online.configSource !== "manual"
+          ) {
+            const next = {
+              ...current,
+              onlineConfigSource: data.config.online.configSource
+            };
+            onChange(next);
+            return next;
+          }
+          return current;
+        });
       })
       .catch((error: Error) => {
         if (cancelled) return;
@@ -76,7 +91,7 @@ export function ModelSourceControl({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [onChange]);
 
   const update = (patch: Partial<RuntimeModelSettings>) => {
     const next = { ...draft, ...patch };
@@ -239,7 +254,7 @@ export function ModelSourceControl({
               <label htmlFor="online-credential-source" className="text-xs font-semibold">
                 Credential source
               </label>
-              <InfoHint label="Configured environment reads ONLINE_LLM_* from the Paper Lens server process. Codex config reads ~/.codex/config.toml and a string OpenAI-compatible API key from ~/.codex/auth.json; it cannot use this chat session's hidden auth token." />
+              <InfoHint label="Configured environment reads ONLINE_LLM_* from the Paper Lens server process. Codex config reads ~/.codex/config.toml provider base_url/model plus provider token fields or ~/.codex/auth.json. Manual is only for a browser-session key." />
             </div>
             <select
               id="online-credential-source"

@@ -11,6 +11,13 @@ export interface ConfiguredOnlineProvider {
   apiKey: string;
 }
 
+interface CodexProviderConfig {
+  baseUrl?: string;
+  model?: string;
+  apiKey?: string;
+  hasProviderConfig: boolean;
+}
+
 export function resolveOnlineApiKey(
   source: OnlineConfigSource,
   manualApiKey?: string,
@@ -34,10 +41,24 @@ export function resolveConfiguredOnlineProvider(
 ): ConfiguredOnlineProvider {
   const codex = readCodexConfig(env);
   return {
-    baseUrl: nonEmpty(env.ONLINE_LLM_BASE_URL) ?? codex.baseUrl ?? "",
+    baseUrl: normalizeOpenAiBaseUrl(nonEmpty(env.ONLINE_LLM_BASE_URL) ?? codex.baseUrl) ?? "",
     model: nonEmpty(env.ONLINE_LLM_MODEL) ?? codex.model ?? "",
-    apiKey: nonEmpty(env.ONLINE_LLM_API_KEY) ?? readCodexAuthApiKey(env) ?? ""
+    apiKey: nonEmpty(env.ONLINE_LLM_API_KEY) ?? codex.apiKey ?? readCodexAuthApiKey(env) ?? ""
   };
+}
+
+export function hasConfiguredOnlineProvider(
+  env: Record<string, string | undefined> = process.env
+): boolean {
+  const codex = readCodexConfig(env);
+  return Boolean(
+    nonEmpty(env.ONLINE_LLM_BASE_URL) ||
+      nonEmpty(env.ONLINE_LLM_MODEL) ||
+      nonEmpty(env.ONLINE_LLM_API_KEY) ||
+      codex.hasProviderConfig ||
+      codex.baseUrl ||
+      codex.apiKey
+  );
 }
 
 function codexHome(env: Record<string, string | undefined>): string {
@@ -73,20 +94,25 @@ function readApiKeyValue(value: unknown): string | undefined {
 function readCodexConfig(env: Record<string, string | undefined>): {
   baseUrl?: string;
   model?: string;
+  apiKey?: string;
+  hasProviderConfig: boolean;
 } {
   const configPath = path.join(codexHome(env), "config.toml");
   try {
-    return parseCodexConfigToml(fs.readFileSync(configPath, "utf-8"));
+    return parseCodexConfigToml(fs.readFileSync(configPath, "utf-8"), env);
   } catch {
-    return {};
+    return { hasProviderConfig: false };
   }
 }
 
-function parseCodexConfigToml(content: string): { baseUrl?: string; model?: string } {
+function parseCodexConfigToml(
+  content: string,
+  env: Record<string, string | undefined>
+): CodexProviderConfig {
   let currentSection = "";
   let provider = "";
   let model = "";
-  const providerBaseUrls = new Map<string, string>();
+  const providerFields = new Map<string, Record<string, string>>();
 
   for (const rawLine of content.split(/\r?\n/)) {
     const line = rawLine.trim();
@@ -103,15 +129,49 @@ function parseCodexConfigToml(content: string): { baseUrl?: string; model?: stri
 
     if (!currentSection && key === "model_provider") provider = value;
     if (!currentSection && key === "model") model = value;
-    if (currentSection.startsWith("model_providers.") && key === "base_url") {
-      providerBaseUrls.set(currentSection.replace(/^model_providers\./, ""), value);
+    const providerName = providerNameFromSection(currentSection);
+    if (providerName) {
+      const fields = providerFields.get(providerName) ?? {};
+      fields[key] = value;
+      providerFields.set(providerName, fields);
     }
   }
 
+  const selectedProvider = provider ? providerFields.get(provider) : undefined;
   return {
-    baseUrl: provider ? nonEmpty(providerBaseUrls.get(provider)) : undefined,
-    model: nonEmpty(model)
+    baseUrl: selectedProvider ? nonEmpty(selectedProvider.base_url) : undefined,
+    model: nonEmpty(model) ?? nonEmpty(selectedProvider?.model),
+    apiKey: selectedProvider ? readProviderApiKey(selectedProvider, env) : undefined,
+    hasProviderConfig: Boolean(selectedProvider && Object.keys(selectedProvider).length > 0)
   };
+}
+
+function providerNameFromSection(section: string): string {
+  if (!section.startsWith("model_providers.")) return "";
+  return stripTomlQuotes(section.replace(/^model_providers\./, ""));
+}
+
+function stripTomlQuotes(value: string): string {
+  const trimmed = value.trim();
+  const quoted =
+    (/^"([^"]*)"$/.exec(trimmed) ?? /^'([^']*)'$/.exec(trimmed)) as RegExpExecArray | null;
+  return quoted ? quoted[1] : trimmed;
+}
+
+function readProviderApiKey(
+  provider: Record<string, string>,
+  env: Record<string, string | undefined>
+): string | undefined {
+  for (const field of ["env_key", "api_key_env", "api_key_env_var"]) {
+    const envName = provider[field];
+    const apiKey = envName ? nonEmpty(env[envName]) : undefined;
+    if (apiKey) return apiKey;
+  }
+  for (const field of ["experimental_bearer_token", "api_key", "bearer_token", "token"]) {
+    const apiKey = nonEmpty(provider[field]);
+    if (apiKey) return apiKey;
+  }
+  return undefined;
 }
 
 function parseTomlScalar(value: string): string {
@@ -124,4 +184,16 @@ function parseTomlScalar(value: string): string {
 function nonEmpty(value: string | undefined): string | undefined {
   const trimmed = value?.trim();
   return trimmed ? trimmed : undefined;
+}
+
+function normalizeOpenAiBaseUrl(value: string | undefined): string | undefined {
+  const baseUrl = nonEmpty(value)?.replace(/\/+$/, "");
+  if (!baseUrl) return undefined;
+  try {
+    const parsed = new URL(baseUrl);
+    if (parsed.pathname === "" || parsed.pathname === "/") return `${baseUrl}/v1`;
+  } catch {
+    return baseUrl;
+  }
+  return baseUrl;
 }

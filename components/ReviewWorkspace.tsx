@@ -1,6 +1,7 @@
 "use client";
 
 import { CaretDown, CaretLeft, CaretRight, CaretUp } from "@phosphor-icons/react";
+import { useState } from "react";
 import type {
   EvidencePacket,
   EvidenceRouteEvent,
@@ -15,6 +16,17 @@ import { KnowledgeBasePanel } from "@/components/KnowledgeBasePanel";
 import { ModelSourceControl } from "@/components/ModelSourceControl";
 import { ReviewMaterialExport } from "@/components/ReviewMaterialExport";
 import { ScreeningForm } from "@/components/ScreeningForm";
+
+type WorkspaceMode = "Assist" | "Evidence" | "Review";
+
+const workspaceModes: Array<{
+  value: WorkspaceMode;
+  summary: string;
+}> = [
+  { value: "Assist", summary: "Ask, brief, and search while reading." },
+  { value: "Evidence", summary: "Check saved packets and corpus context." },
+  { value: "Review", summary: "Write screening and extraction fields." }
+];
 
 export function ReviewWorkspace({
   paper,
@@ -37,6 +49,8 @@ export function ReviewWorkspace({
   collapsed?: boolean;
   onCollapsedChange?: (collapsed: boolean) => void;
 }) {
+  const [activeMode, setActiveMode] = useState<WorkspaceMode>("Assist");
+
   if (collapsed) {
     return (
       <aside aria-label="Review workspace" className="review-workspace-collapsed">
@@ -55,11 +69,14 @@ export function ReviewWorkspace({
   }
 
   return (
-    <aside aria-label="Review workspace" className="min-h-0 overflow-auto bg-swiss-wash lg:h-[100dvh]">
-      <header className="flex items-start justify-between gap-3 border-b border-swiss-rule bg-white px-4 py-3">
-        <div>
-          <h2 className="text-sm font-semibold">Review workspace</h2>
-          <p className="mt-1 font-mono text-xs text-swiss-muted">{paper?.recordId ?? "No record"}</p>
+    <aside aria-label="Review workspace" className="review-workspace-panel lg:h-[100dvh]">
+      <header className="review-workspace-header">
+        <div className="min-w-0">
+          <p className="review-workspace-kicker">Workspace</p>
+          <h2 className="review-workspace-title">{paper?.recordId ?? "No record"}</h2>
+          <p className="review-workspace-summary">
+            {workspaceModes.find((mode) => mode.value === activeMode)?.summary}
+          </p>
         </div>
         <button
           type="button"
@@ -71,8 +88,23 @@ export function ReviewWorkspace({
           <CaretRight aria-hidden="true" weight="bold" className="hidden size-3.5 lg:block" />
         </button>
       </header>
-      <div className="grid gap-5 p-4">
-        <WorkspaceGroup title="Model">
+      <div className="workspace-mode-tabs" role="tablist" aria-label="Workspace task modes">
+        {workspaceModes.map((mode) => (
+          <button
+            key={mode.value}
+            type="button"
+            role="tab"
+            aria-selected={activeMode === mode.value}
+            onClick={() => setActiveMode(mode.value)}
+            className="workspace-mode-tab"
+          >
+            {mode.value}
+          </button>
+        ))}
+      </div>
+
+      {activeMode === "Assist" ? (
+        <WorkspaceModePanel label="Assist tools">
           <ArtifactView
             title="Model source"
             info="Choose Local or Online for Ask, translation, and model-assisted helpers. Click a source to open its settings."
@@ -80,9 +112,7 @@ export function ReviewWorkspace({
           >
             <ModelSourceControl value={modelSettings} onChange={onModelSettingsChange} />
           </ArtifactView>
-        </WorkspaceGroup>
 
-        <WorkspaceGroup title="AI help">
           <ArtifactView
             title="Ask"
             info="Ask a question from attached evidence or from the local knowledge base. It will not send the full paper."
@@ -102,9 +132,7 @@ export function ReviewWorkspace({
           >
             <BriefPanel paper={paper} />
           </ArtifactView>
-        </WorkspaceGroup>
 
-        <WorkspaceGroup title="Corpus">
           <ArtifactView
             title="Knowledge base"
             info="Select a knowledge base and search its contents. All review knowledge operations use the selected base."
@@ -116,9 +144,50 @@ export function ReviewWorkspace({
               onKnowledgeBaseChange={onKnowledgeBaseChange}
             />
           </ArtifactView>
-        </WorkspaceGroup>
+        </WorkspaceModePanel>
+      ) : null}
 
-        <WorkspaceGroup title="Human record">
+      {activeMode === "Evidence" ? (
+        <WorkspaceModePanel label="Evidence tools">
+          <ArtifactView
+            title="Evidence attached"
+            info="Shows how many evidence packets are ready to use in Ask, screening, extraction, and export."
+            storageKey="review-workspace:evidence-attached"
+            defaultOpen
+          >
+            <div className="workspace-evidence-meter">
+              <strong>{evidence.length}</strong>
+              <span>{evidence.length === 1 ? "packet ready" : "packets ready"}</span>
+            </div>
+            {evidence.length === 0 ? (
+              <p className="workspace-empty-line">Select text in MD or PDF to add evidence.</p>
+            ) : (
+              <ol className="workspace-evidence-list">
+                {evidence.slice(0, 5).map((item) => (
+                  <li key={item.id}>
+                    <span>{item.evidenceLocator}</span>
+                    <small>{item.sourceFormat}</small>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </ArtifactView>
+          <ArtifactView
+            title="Knowledge base"
+            info="Select a knowledge base and search its contents. All review knowledge operations use the selected base."
+            storageKey="review-workspace:evidence-knowledge-base"
+          >
+            <KnowledgeBasePanel
+              paper={paper}
+              selectedKnowledgeBaseId={knowledgeBaseId}
+              onKnowledgeBaseChange={onKnowledgeBaseChange}
+            />
+          </ArtifactView>
+        </WorkspaceModePanel>
+      ) : null}
+
+      {activeMode === "Review" ? (
+        <WorkspaceModePanel label="Review tools">
           <ArtifactView
             title="Screening"
             info="Record the include/exclude/maybe decision and cite the evidence locator from MD or PDF."
@@ -140,29 +209,21 @@ export function ReviewWorkspace({
           >
             <ReviewMaterialExport paper={paper} />
           </ArtifactView>
-          <ArtifactView
-            title="Evidence attached"
-            info="Shows how many evidence packets are ready to use in Ask, screening, extraction, and export."
-            storageKey="review-workspace:evidence-attached"
-          >
-            {evidence.length === 0 ? "No evidence selected." : `${evidence.length} evidence item(s) ready.`}
-          </ArtifactView>
-        </WorkspaceGroup>
-      </div>
+        </WorkspaceModePanel>
+      ) : null}
     </aside>
   );
 }
 
-function WorkspaceGroup({
-  title,
+function WorkspaceModePanel({
+  label,
   children
 }: {
-  title: string;
+  label: string;
   children: React.ReactNode;
 }) {
   return (
-    <section role="region" aria-label={title} className="workspace-group">
-      <h3 className="workspace-group-title">{title}</h3>
+    <section role="tabpanel" aria-label={label} className="workspace-mode-panel">
       <div className="workspace-stack">{children}</div>
     </section>
   );

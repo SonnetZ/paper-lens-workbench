@@ -55,4 +55,24 @@ describe("ReaderShell", () => {
     expect(screen.getByText("Mock PDF Reader")).toBeInTheDocument();
     expect(screen.queryByText("Markdown source not loaded.")).not.toBeInTheDocument();
   });
+
+  it("opens a paper with both Markdown and PDF in the PDF reader by default", () => {
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ content: "# Sample" })));
+
+    render(
+      <ReaderShell
+        paper={{
+          ...paper,
+          hasMarkdown: true,
+          hasPdf: true,
+          markdownPath: "/papers/paired.md",
+          pdfPath: "/papers/paired.pdf"
+        }}
+        onEvidence={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText("Mock PDF Reader")).toBeInTheDocument();
+    expect(screen.queryByText("Mock Markdown Reader")).not.toBeInTheDocument();
+  });
 });

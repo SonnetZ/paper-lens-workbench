@@ -183,6 +183,8 @@ export function AppShell({ initialPapers }: Props) {
         <ReaderShell
           paper={selectedPaper}
           modelSettings={modelSettings}
+          evidenceCount={evidence.length}
+          knowledgeBaseId={knowledgeBaseId}
           onEvidence={saveEvidence}
         />
         <EvidenceTray

@@ -91,6 +91,35 @@ describe("ModelSourceControl", () => {
     expect(screen.queryByDisplayValue("sk-saved")).not.toBeInTheDocument();
   });
 
+  it("uses the configured Codex credential source by default when available", async () => {
+    const onChange = vi.fn();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({
+          config: redactedConfig({
+            onlineHost: "gateway.example.test",
+            onlineModel: "gpt-5.5",
+            credentialState: "present",
+            configSource: "cc_switch"
+          })
+        })
+      )
+    );
+
+    render(<ModelSourceControl value={defaultSettings()} onChange={onChange} />);
+
+    await waitFor(() =>
+      expect(onChange).toHaveBeenCalledWith(
+        expect.objectContaining({ onlineConfigSource: "cc_switch" })
+      )
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Online" }));
+
+    expect(screen.getByLabelText("Credential source")).toHaveValue("cc_switch");
+    expect(screen.queryByLabelText("Manual API key")).not.toBeInTheDocument();
+  });
+
   it("tests an online provider using configured environment settings", async () => {
     const onChange = vi.fn();
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {

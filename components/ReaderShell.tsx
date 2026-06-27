@@ -8,12 +8,20 @@ import { PdfReader } from "@/components/PdfReader";
 interface Props {
   paper: PaperListItem | null;
   modelSettings?: RuntimeModelSettings;
+  evidenceCount?: number;
+  knowledgeBaseId?: string;
   onEvidence: (input: EvidenceInput) => void;
 }
 
 type ReaderMode = "Markdown" | "PDF";
 
-export function ReaderShell({ paper, modelSettings, onEvidence }: Props) {
+export function ReaderShell({
+  paper,
+  modelSettings,
+  evidenceCount = 0,
+  knowledgeBaseId = "default",
+  onEvidence
+}: Props) {
   const paperRecordId = paper?.recordId ?? "";
   const hasMarkdown = Boolean(paper?.hasMarkdown);
   const hasPdf = Boolean(paper?.hasPdf);
@@ -47,27 +55,33 @@ export function ReaderShell({ paper, modelSettings, onEvidence }: Props) {
   }
 
   return (
-    <section className="grid min-h-0 grid-rows-[auto_1fr] bg-white">
-      <header className="flex items-center justify-between border-b border-swiss-rule px-4 py-3">
-        <div>
-          <p className="font-mono text-xs text-swiss-red">{paper.recordId}</p>
-          <h1 className="mt-1 line-clamp-1 text-lg font-semibold tracking-tight">
-            {paper.title || paper.sourceFilename}
-          </h1>
+    <section className="reader-shell grid min-h-0 grid-rows-[auto_1fr]">
+      <header aria-label="Reading cockpit" role="region" className="reader-cockpit">
+        <div className="reader-cockpit-primary">
+          <div className="min-w-0">
+            <p className="reader-cockpit-record">{paper.recordId}</p>
+            <h1 className="reader-cockpit-title">{paper.title || paper.sourceFilename}</h1>
+          </div>
+          <div className="reader-cockpit-modes" aria-label="Reader mode">
+            {(["Markdown", "PDF"] as const).map((item) => (
+              <button
+                key={item}
+                type="button"
+                aria-pressed={mode === item}
+                onClick={() => setMode(item)}
+                className="workbench-tab-button"
+              >
+                {item}
+              </button>
+            ))}
+          </div>
         </div>
-        <div className="flex gap-1 font-mono text-xs">
-          {(["Markdown", "PDF"] as const).map((item) => (
-            <button
-              key={item}
-              type="button"
-              aria-pressed={mode === item}
-              onClick={() => setMode(item)}
-              className="workbench-tab-button"
-            >
-              {item}
-            </button>
-          ))}
-        </div>
+        <dl className="reader-cockpit-telemetry">
+          <TelemetryItem label="Source" value={sourceSummary(hasMarkdown, hasPdf)} />
+          <TelemetryItem label="Evidence" value={String(evidenceCount)} />
+          <TelemetryItem label="Model" value={modelSettings?.mode ?? "mock"} />
+          <TelemetryItem label="KB" value={knowledgeBaseId} />
+        </dl>
       </header>
       {mode === "PDF" ? (
         paper.hasPdf ? (
@@ -98,6 +112,25 @@ export function ReaderShell({ paper, modelSettings, onEvidence }: Props) {
   );
 }
 
+function TelemetryItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="reader-cockpit-chip">
+      <dt>{label}</dt>
+      <dd>{value}</dd>
+      <span className="sr-only">
+        {label} {value}
+      </span>
+    </div>
+  );
+}
+
+function sourceSummary(hasMarkdown: boolean, hasPdf: boolean): string {
+  if (hasMarkdown && hasPdf) return "MD + PDF";
+  if (hasMarkdown) return "MD";
+  if (hasPdf) return "PDF";
+  return "No source";
+}
+
 function preferredReaderMode(hasMarkdown: boolean, hasPdf: boolean): ReaderMode {
-  return hasPdf && !hasMarkdown ? "PDF" : "Markdown";
+  return hasPdf ? "PDF" : "Markdown";
 }

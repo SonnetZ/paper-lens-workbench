@@ -70,6 +70,15 @@ describe("AppShell evidence persistence", () => {
     expect(screen.getByRole("complementary", { name: "Evidence tray" })).toHaveClass(
       "evidence-tray-expanded"
     );
+    expect(screen.getByRole("region", { name: "Reading cockpit" })).toHaveTextContent(
+      "Evidence 0"
+    );
+    expect(screen.getByRole("region", { name: "Reading cockpit" })).toHaveTextContent(
+      "Model mock"
+    );
+    expect(screen.getByRole("region", { name: "Reading cockpit" })).toHaveTextContent(
+      "KB default"
+    );
   });
 
   it("can collapse and expand the paper list", async () => {
@@ -139,7 +148,9 @@ describe("AppShell evidence persistence", () => {
     render(<AppShell initialPapers={papers} />);
 
     expect(await screen.findByText("Persisted memo")).toBeInTheDocument();
-    expect(screen.getByText("1 evidence item(s) ready.")).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Reading cockpit" })).toHaveTextContent(
+      "Evidence 1"
+    );
     expect(fetchMock).toHaveBeenCalledWith("/api/evidence?recordId=FT0001");
   });
 
@@ -201,7 +212,9 @@ describe("AppShell evidence persistence", () => {
 
     const tray = screen.getByRole("complementary", { name: "Evidence tray" });
     expect(await within(tray).findByText("Reviewer memo")).toBeInTheDocument();
-    expect(screen.getByText("1 evidence item(s) ready.")).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Reading cockpit" })).toHaveTextContent(
+      "Evidence 1"
+    );
   });
 
   it("routes a tray evidence packet into an extraction draft field", async () => {
@@ -227,6 +240,7 @@ describe("AppShell evidence persistence", () => {
       "extraction.evaluationPractices"
     );
     await userEvent.click(screen.getByRole("button", { name: "Send evidence to field" }));
+    await userEvent.click(screen.getByRole("tab", { name: "Review" }));
 
     expect(screen.getByLabelText("Evaluation practices")).toHaveValue(
       "Persisted memo: Already saved evidence for this paper."

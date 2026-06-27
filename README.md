@@ -98,9 +98,13 @@ choose Local or Online without rewriting `.env.local`.
   disk.
 - Online environment key: set `ONLINE_LLM_API_KEY` in `.env.local`.
 - Online CC switch / Codex config: reads OpenAI-compatible settings visible to
-  the Paper Lens server process: `ONLINE_LLM_*`, `CODEX_HOME/config.toml`, and a
-  string API key in `CODEX_HOME/auth.json` or `~/.codex/auth.json`. It cannot use
-  the hidden auth token from this Codex chat session.
+  the Paper Lens server process: `ONLINE_LLM_*`, provider `base_url` / `model`
+  values in `CODEX_HOME/config.toml`, provider token fields such as
+  `experimental_bearer_token`, `api_key`, `bearer_token`, or `token`, and a
+  string API key in `CODEX_HOME/auth.json` or `~/.codex/auth.json`. If
+  `ONLINE_LLM_CONFIG_SOURCE` is blank, the app automatically uses configured
+  environment variables or Codex provider config before falling back to manual.
+  It cannot use the hidden auth token from this Codex chat session.
 
 The app sends only reviewer-selected evidence packets or retrieved knowledge
 base chunks to Local or Online models. Full-paper model calls remain blocked.

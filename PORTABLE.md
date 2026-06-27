@@ -65,8 +65,10 @@ Model settings can be selected from the app UI for the current session:
   only `/v1/models`.
 - Online manual key: paste a key in the UI for the current session only.
 - Online environment key: set `ONLINE_LLM_API_KEY` in `.env.local`.
-- Online CC switch: use a Codex auth file managed by `cc-switch` or Codex at
-  `CODEX_HOME/auth.json`, with `~/.codex/auth.json` as the fallback.
+- Online CC switch / Codex config: use provider `base_url` / `model` values and
+  token fields in `CODEX_HOME/config.toml`, or a Codex auth file managed by
+  `cc-switch` or Codex at `CODEX_HOME/auth.json`, with `~/.codex/auth.json` as
+  the fallback.
 
 No API keys, private corpora, SQLite evidence stores, or exports are included
 in the portable archive.

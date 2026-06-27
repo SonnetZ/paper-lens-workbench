@@ -5,7 +5,7 @@ import type { PaperListItem, RuntimeModelSettings } from "@/lib/types";
 import { ReviewWorkspace } from "@/components/ReviewWorkspace";
 
 describe("ReviewWorkspace", () => {
-  it("groups right-side tools by model, AI help, corpus, and human record", async () => {
+  it("organizes tools into cockpit task modes instead of stacked groups", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url: string) => {
@@ -95,42 +95,42 @@ describe("ReviewWorkspace", () => {
     );
 
     await waitFor(() => expect(screen.getByText("4 documents")).toBeInTheDocument());
+
+    expect(screen.getByRole("tab", { name: "Assist" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Evidence" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Review" })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Model" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "AI help" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Corpus" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Human record" })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Ask" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Brief" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Knowledge base" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Screening" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Extraction" })).not.toBeInTheDocument();
+    expect(screen.getByText("Model: mock")).toHaveClass("workspace-status-line");
+
+    await userEvent.click(screen.getByRole("tab", { name: "Evidence" }));
+    expect(screen.getByRole("tab", { name: "Evidence" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("heading", { name: "Evidence attached" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Ask" })).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("tab", { name: "Review" }));
+    expect(screen.getByRole("tab", { name: "Review" })).toHaveAttribute("aria-selected", "true");
     await waitFor(() =>
       expect(screen.getByText("maybe", { selector: ".review-meta-value" })).toBeInTheDocument()
     );
     await waitFor(() =>
       expect(screen.getByDisplayValue("Loaded method typology.")).toBeInTheDocument()
     );
-
-    expect(screen.getByRole("region", { name: "Model" })).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "AI help" })).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "Corpus" })).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "Human record" })).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "Model" })).toHaveClass("workspace-group");
-    expect(screen.getByRole("region", { name: "AI help" })).toHaveClass("workspace-group");
-    expect(screen.getByRole("heading", { name: "Ask" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Screening" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Extraction" })).toBeInTheDocument();
-    expect(screen.getByText("Model: mock")).toHaveClass("workspace-status-line");
     expect(
       screen.getByText("maybe", { selector: ".review-meta-value" }).closest(".workspace-status-strip")
     ).toHaveClass("workspace-status-strip");
+    expect(screen.getByRole("heading", { name: "Screening" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Extraction" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Knowledge base" })).not.toBeInTheDocument();
 
-    for (const title of [
-      "Model source",
-      "Ask",
-      "Brief",
-      "Knowledge base",
-      "Screening",
-      "Extraction",
-      "Review material",
-      "Evidence attached"
-    ]) {
-      expect(screen.getByRole("heading", { name: title }).closest("summary")?.parentElement).not.toHaveAttribute(
-        "open"
-      );
-    }
-
+    await userEvent.click(screen.getByRole("tab", { name: "Assist" }));
     const askSummary = screen.getByRole("heading", { name: "Ask" }).closest("summary");
     await userEvent.click(askSummary as HTMLElement);
     expect(askSummary?.parentElement).toHaveAttribute("open");

@@ -1,5 +1,6 @@
 import path from "node:path";
 import type { AppConfig, InternalLlmMode } from "@/lib/types";
+import { hasConfiguredOnlineProvider } from "@/lib/server/onlineCredentials";
 
 function resolvePath(value: string | undefined, cwd: string, fallback: string): string {
   const selected = value && value.trim().length > 0 ? value : fallback;
@@ -10,6 +11,16 @@ function resolveMode(value: string | undefined): InternalLlmMode {
   const mode = value ?? "mock";
   if (mode === "mock" || mode === "local" || mode === "online") return mode;
   throw new Error(`Unsupported LLM_MODE: ${mode}`);
+}
+
+function resolveOnlineConfigSource(
+  env: Record<string, string | undefined>
+): AppConfig["onlineConfigSource"] {
+  if (env.ONLINE_LLM_CONFIG_SOURCE === "manual") return "manual";
+  if (env.ONLINE_LLM_CONFIG_SOURCE === "env") return "env";
+  if (env.ONLINE_LLM_CONFIG_SOURCE === "cc_switch") return "cc_switch";
+  if (env.ONLINE_LLM_BASE_URL || env.ONLINE_LLM_MODEL || env.ONLINE_LLM_API_KEY) return "env";
+  return hasConfiguredOnlineProvider(env) ? "cc_switch" : "manual";
 }
 
 export function resolveAppConfig(
@@ -31,10 +42,7 @@ export function resolveAppConfig(
     localLlmModel: env.LOCAL_LLM_MODEL ?? "",
     onlineLlmBaseUrl: env.ONLINE_LLM_BASE_URL ?? "",
     onlineLlmModel: env.ONLINE_LLM_MODEL ?? "",
-    onlineConfigSource:
-      env.ONLINE_LLM_CONFIG_SOURCE === "env" || env.ONLINE_LLM_CONFIG_SOURCE === "cc_switch"
-        ? env.ONLINE_LLM_CONFIG_SOURCE
-        : "manual",
+    onlineConfigSource: resolveOnlineConfigSource(env),
     translationOpusBaseUrl: env.TRANSLATION_OPUS_BASE_URL?.trim() || "http://127.0.0.1:8010",
     llmMaxInputChars: Number.parseInt(env.LLM_MAX_INPUT_CHARS ?? "24000", 10)
   };

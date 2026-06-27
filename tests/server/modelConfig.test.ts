@@ -31,6 +31,7 @@ describe("model config safety", () => {
     delete process.env.ONLINE_LLM_API_KEY;
     delete process.env.ONLINE_LLM_BASE_URL;
     delete process.env.ONLINE_LLM_MODEL;
+    delete process.env.ONLINE_LLM_CONFIG_SOURCE;
   });
 
   it("tests local connection with /models only", async () => {
@@ -110,6 +111,62 @@ describe("model config safety", () => {
     const provider = resolveConfiguredOnlineProvider();
 
     expect(provider.apiKey).toBe("nested-secret");
+    rmSync(tempCodexHome, { recursive: true, force: true });
+  });
+
+  it("reads a Codex provider bearer token from config.toml", () => {
+    const tempCodexHome = path.join(os.tmpdir(), `reader-codex-provider-${Date.now()}`);
+    mkdirSync(tempCodexHome, { recursive: true });
+    writeFileSync(
+      path.join(tempCodexHome, "config.toml"),
+      [
+        'model_provider = "gateway"',
+        'model = "gpt-5.5"',
+        "",
+        "[model_providers.gateway]",
+        'base_url = "https://gateway.example.test"',
+        'experimental_bearer_token = "provider-secret"',
+        ""
+      ].join("\n")
+    );
+
+    const provider = resolveConfiguredOnlineProvider({ CODEX_HOME: tempCodexHome });
+
+    expect(provider).toEqual({
+      baseUrl: "https://gateway.example.test/v1",
+      model: "gpt-5.5",
+      apiKey: "provider-secret"
+    });
+    process.env.CODEX_HOME = tempCodexHome;
+    const redacted = getRedactedModelConfig({ ...mockConfig, onlineConfigSource: "cc_switch" });
+
+    expect(redacted.online.credentialState).toBe("present");
+    expect(JSON.stringify(redacted)).not.toContain("provider-secret");
+    rmSync(tempCodexHome, { recursive: true, force: true });
+  });
+
+  it("reads a Codex provider API key from a configured environment variable", () => {
+    const tempCodexHome = path.join(os.tmpdir(), `reader-codex-env-provider-${Date.now()}`);
+    mkdirSync(tempCodexHome, { recursive: true });
+    writeFileSync(
+      path.join(tempCodexHome, "config.toml"),
+      [
+        'model_provider = "gateway"',
+        'model = "gpt-5.5"',
+        "",
+        "[model_providers.gateway]",
+        'base_url = "https://gateway.example.test/v1"',
+        'env_key = "GATEWAY_API_KEY"',
+        ""
+      ].join("\n")
+    );
+
+    const provider = resolveConfiguredOnlineProvider({
+      CODEX_HOME: tempCodexHome,
+      GATEWAY_API_KEY: "env-provider-secret"
+    });
+
+    expect(provider.apiKey).toBe("env-provider-secret");
     rmSync(tempCodexHome, { recursive: true, force: true });
   });
 
