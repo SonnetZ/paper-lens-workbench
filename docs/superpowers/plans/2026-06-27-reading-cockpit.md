@@ -51,4 +51,4 @@
 - `npm run build`
 - `git diff --check`
 
-**Latest local verification:** `git diff --check`, `./node_modules/.bin/tsc --noEmit`, `./node_modules/.bin/vitest run`, and `npm run build` pass. Browser screenshot verification is still pending because this environment cannot bind a local dev-server port and Playwright browsers are not installed.
+**Latest local verification:** `git diff --check`, `./node_modules/.bin/tsc --noEmit`, `./node_modules/.bin/vitest run`, `npm run build`, and browser screenshot verification all pass. Screenshot captured at `output/playwright/verify/cockpit.png`.
