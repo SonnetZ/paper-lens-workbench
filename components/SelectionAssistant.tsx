@@ -3,6 +3,7 @@
 import {
   ChatCircleText,
   Copy,
+  DotsSixVertical,
   FloppyDisk,
   Translate,
   X
@@ -133,6 +134,7 @@ export function SelectionAssistant({
       <div className="flex items-start justify-between gap-3">
         <div
           className="selection-assistant-drag-handle min-w-0 flex-1"
+          aria-label="Drag selection assistant"
           onPointerDown={beginDrag}
           onPointerMove={moveDrag}
           onPointerUp={endDrag}
@@ -141,7 +143,10 @@ export function SelectionAssistant({
           <p className="line-clamp-2 text-xs leading-5 text-swiss-muted">
             {draft.evidence.quoteSnippet}
           </p>
-          <p className="mt-1 font-mono text-[10px] uppercase text-swiss-muted">Drag</p>
+          <p className="mt-1 inline-flex items-center gap-1 font-mono text-[10px] uppercase text-swiss-muted">
+            <DotsSixVertical aria-hidden="true" size={13} weight="bold" />
+            Drag
+          </p>
         </div>
         <div className="flex items-center gap-1">
           <button

@@ -80,6 +80,21 @@ describe("ReviewWorkspace", () => {
             }
           });
         }
+        if (url === "/api/papers/FT0001/brief?reviewProjectId=default") {
+          return Response.json({
+            brief: {
+              recordId: "FT0001",
+              reviewProjectId: "default",
+              eligibility_suggestion: "maybe",
+              rationale: "Loaded brief.",
+              read_first: ["Abstract"],
+              warnings: [],
+              payload_scope: "Paper sections",
+              model_settings: null,
+              updated_at: "2026-06-25T00:00:00.000Z"
+            }
+          });
+        }
         return Response.json({}, { status: 404 });
       })
     );

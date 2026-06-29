@@ -130,7 +130,11 @@ export function ReviewWorkspace({
             info="Generate a quick navigation brief: suggested decision, rationale, and sections to read first. Treat it as a draft."
             storageKey="review-workspace:brief"
           >
-            <BriefPanel paper={paper} />
+            <BriefPanel
+              paper={paper}
+              modelSettings={modelSettings}
+              reviewProjectId={knowledgeBaseId}
+            />
           </ArtifactView>
 
           <ArtifactView

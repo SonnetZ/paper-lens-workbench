@@ -9,6 +9,7 @@ export function openReaderDb(dbPath: string): Database.Database {
   const migrationPath = path.join(process.cwd(), "migrations", "001_initial.sql");
   db.exec(readFileSync(migrationPath, "utf-8"));
   ensureEvidencePacketColumns(db);
+  ensureBriefTables(db);
   ensureKnowledgeTables(db);
   return db;
 }
@@ -21,6 +22,13 @@ function ensureEvidencePacketColumns(db: Database.Database) {
   if (!columns.has("pdf_verification_note")) {
     db.exec("ALTER TABLE evidence_packets ADD COLUMN pdf_verification_note TEXT NOT NULL DEFAULT ''");
   }
+  if (!columns.has("review_project_id")) {
+    db.exec("ALTER TABLE evidence_packets ADD COLUMN review_project_id TEXT NOT NULL DEFAULT 'default'");
+  }
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_evidence_packets_project_record
+    ON evidence_packets(review_project_id, record_id);
+  `);
 }
 
 function ensureKnowledgeTables(db: Database.Database) {
@@ -186,6 +194,23 @@ function migrateKnowledgeNamespace(db: Database.Database) {
   });
   migrate();
   db.exec("PRAGMA foreign_keys = ON");
+}
+
+function ensureBriefTables(db: Database.Database) {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS brief_artifacts (
+      review_project_id TEXT NOT NULL DEFAULT 'default',
+      record_id TEXT NOT NULL,
+      eligibility_suggestion TEXT NOT NULL DEFAULT '',
+      rationale TEXT NOT NULL DEFAULT '',
+      read_first_json TEXT NOT NULL DEFAULT '[]',
+      warnings_json TEXT NOT NULL DEFAULT '[]',
+      payload_scope TEXT NOT NULL DEFAULT 'Paper sections',
+      model_settings_json TEXT,
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY (review_project_id, record_id)
+    );
+  `);
 }
 
 function tableColumns(db: Database.Database, table: string): Set<string> {

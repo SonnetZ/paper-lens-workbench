@@ -30,6 +30,7 @@ export function PdfReader({ recordId, pdfUrl, sourcePath, modelSettings, onEvide
   const [pageCount, setPageCount] = useState<number | null>(null);
   const [status, setStatus] = useState<"loading" | "rendering" | "idle" | "error">("loading");
   const [message, setMessage] = useState("");
+  const [zoom, setZoom] = useState(1);
   const [selectionDraft, setSelectionDraft] = useState<SelectionDraft | null>(null);
   const [selectionQuestion, setSelectionQuestion] = useState("");
   const [selectionAnswer, setSelectionAnswer] = useState<ScopedAskAnswer | null>(null);
@@ -107,7 +108,8 @@ export function PdfReader({ recordId, pdfUrl, sourcePath, modelSettings, onEvide
         if (cancelled) return;
         const baseViewport = page.getViewport({ scale: 1 });
         const frameWidth = pageFrameRef.current?.clientWidth || baseViewport.width;
-        const scale = clampNumber((frameWidth - 32) / baseViewport.width, 0.75, 1.45);
+        const fitScale = clampNumber((frameWidth - 32) / baseViewport.width, 0.75, 1.45);
+        const scale = fitScale * zoom;
         const viewport = page.getViewport({ scale });
         const outputScale = window.devicePixelRatio || 1;
         const canvasContext = canvas.getContext("2d");
@@ -147,7 +149,7 @@ export function PdfReader({ recordId, pdfUrl, sourcePath, modelSettings, onEvide
       renderTask?.cancel?.();
       textLayer?.cancel?.();
     };
-  }, [pageCount, pageNumber]);
+  }, [pageCount, pageNumber, zoom]);
 
   const buildEvidenceFromSelection = (): EvidenceInput | null => {
     const selection = window.getSelection();
@@ -258,6 +260,20 @@ export function PdfReader({ recordId, pdfUrl, sourcePath, modelSettings, onEvide
           {pageCount ? ` / ${pageCount}` : ""}
         </span>
         <div className="flex items-center gap-1">
+          <label className="flex items-center gap-2 pr-2 font-mono text-xs text-swiss-muted">
+            <span>PDF zoom</span>
+            <input
+              aria-label="PDF zoom"
+              type="number"
+              min="0.5"
+              max="2"
+              step="0.1"
+              value={zoom}
+              onChange={(event) => setZoom(clampNumber(Number(event.target.value), 0.5, 2))}
+              className="w-16 border border-swiss-rule px-2 py-1 font-mono text-xs"
+            />
+            <span>x</span>
+          </label>
           <button
             type="button"
             aria-label="Previous PDF page"
@@ -344,6 +360,7 @@ async function loadPdfJs(): Promise<PdfJsModule> {
 function evidenceInputToPacket(input: EvidenceInput): EvidencePacket {
   return {
     ...input,
+    reviewProjectId: input.reviewProjectId ?? "default",
     id: "unsaved-pdf-selection",
     createdAt: new Date(0).toISOString()
   };

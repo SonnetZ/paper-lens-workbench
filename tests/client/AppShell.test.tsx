@@ -26,6 +26,7 @@ const papers: PaperListItem[] = [
 
 const savedEvidence: EvidencePacket = {
   id: "ev_saved",
+  reviewProjectId: "default",
   recordId: "FT0001",
   sourceFormat: "manual",
   sourcePath: null,
@@ -41,7 +42,7 @@ const savedEvidence: EvidencePacket = {
 describe("AppShell evidence persistence", () => {
   it("keeps the reading column viewport-height with a bounded evidence tray", () => {
     const fetchMock = vi.fn(async (url: string) => {
-      if (url === "/api/evidence?recordId=FT0001") {
+      if (url === "/api/evidence?recordId=FT0001&reviewProjectId=default") {
         return Response.json({ evidence: [] });
       }
       if (url === "/api/papers/FT0001/screening") {
@@ -83,7 +84,7 @@ describe("AppShell evidence persistence", () => {
 
   it("can collapse and expand the paper list", async () => {
     const fetchMock = vi.fn(async (url: string) => {
-      if (url === "/api/evidence?recordId=FT0001") {
+      if (url === "/api/evidence?recordId=FT0001&reviewProjectId=default") {
         return Response.json({ evidence: [] });
       }
       if (url === "/api/papers/FT0001/screening") {
@@ -107,7 +108,7 @@ describe("AppShell evidence persistence", () => {
 
   it("can collapse and expand the review workspace", async () => {
     const fetchMock = vi.fn(async (url: string) => {
-      if (url === "/api/evidence?recordId=FT0001") {
+      if (url === "/api/evidence?recordId=FT0001&reviewProjectId=default") {
         return Response.json({ evidence: [] });
       }
       if (url === "/api/papers/FT0001/screening") {
@@ -132,7 +133,7 @@ describe("AppShell evidence persistence", () => {
 
   it("loads persisted evidence for the selected paper", async () => {
     const fetchMock = vi.fn(async (url: string) => {
-      if (url === "/api/evidence?recordId=FT0001") {
+      if (url === "/api/evidence?recordId=FT0001&reviewProjectId=default") {
         return Response.json({ evidence: [savedEvidence] });
       }
       if (url === "/api/papers/FT0001/screening") {
@@ -151,7 +152,7 @@ describe("AppShell evidence persistence", () => {
     expect(screen.getByRole("region", { name: "Reading cockpit" })).toHaveTextContent(
       "Evidence 1"
     );
-    expect(fetchMock).toHaveBeenCalledWith("/api/evidence?recordId=FT0001");
+    expect(fetchMock).toHaveBeenCalledWith("/api/evidence?recordId=FT0001&reviewProjectId=default");
   });
 
   it("saves manual evidence through the evidence API before showing it as attached", async () => {
@@ -162,7 +163,7 @@ describe("AppShell evidence persistence", () => {
       reviewerNote: "Manual judgement from this reading pass."
     };
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
-      if (url === "/api/evidence?recordId=FT0001") {
+      if (url === "/api/evidence?recordId=FT0001&reviewProjectId=default") {
         return Response.json({ evidence: [] });
       }
       if (url === "/api/evidence" && init?.method === "POST") {
@@ -205,6 +206,7 @@ describe("AppShell evidence persistence", () => {
     );
     expect(JSON.parse(String(postCall?.[1]?.body))).toMatchObject({
       recordId: "FT0001",
+      reviewProjectId: "default",
       sourceFormat: "manual",
       evidenceLocator: "Reviewer memo",
       reviewerNote: "Manual judgement from this reading pass."
@@ -219,7 +221,7 @@ describe("AppShell evidence persistence", () => {
 
   it("routes a tray evidence packet into an extraction draft field", async () => {
     const fetchMock = vi.fn(async (url: string) => {
-      if (url === "/api/evidence?recordId=FT0001") {
+      if (url === "/api/evidence?recordId=FT0001&reviewProjectId=default") {
         return Response.json({ evidence: [savedEvidence] });
       }
       if (url === "/api/papers/FT0001/screening") {
@@ -254,7 +256,7 @@ describe("AppShell evidence persistence", () => {
       pdfVerificationNote: "Verified in PDF p. 4; figure caption checked."
     };
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
-      if (url === "/api/evidence?recordId=FT0001") {
+      if (url === "/api/evidence?recordId=FT0001&reviewProjectId=default") {
         return Response.json({ evidence: [savedEvidence] });
       }
       if (url === "/api/evidence" && init?.method === "PATCH") {

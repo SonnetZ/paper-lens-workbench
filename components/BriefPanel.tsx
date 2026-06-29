@@ -1,35 +1,88 @@
 "use client";
 
 import { Sparkle } from "@phosphor-icons/react";
-import { useState } from "react";
-import type { PaperListItem } from "@/lib/types";
+import { useEffect, useState } from "react";
+import type { PaperListItem, RuntimeModelSettings } from "@/lib/types";
 
 interface BriefResponse {
   brief?: {
+    recordId?: string;
+    reviewProjectId?: string;
     eligibility_suggestion?: string;
     rationale?: string;
     read_first?: string[];
     warnings?: string[];
-  };
+    payload_scope?: string;
+    model_settings?: RuntimeModelSettings;
+    updated_at?: string;
+  } | null;
   error?: string;
 }
 
-export function BriefPanel({ paper }: { paper: PaperListItem | null }) {
-  const [brief, setBrief] = useState<BriefResponse["brief"] | null>(null);
+export function BriefPanel({
+  paper,
+  modelSettings,
+  reviewProjectId = "default"
+}: {
+  paper: PaperListItem | null;
+  modelSettings?: RuntimeModelSettings;
+  reviewProjectId?: string;
+}) {
+  const [brief, setBrief] = useState<BriefResponse["brief"]>(null);
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadBrief() {
+      if (!paper) {
+        setBrief(null);
+        setMessage("");
+        setStatus("idle");
+        return;
+      }
+
+      setBrief(null);
+      setStatus("loading");
+      setMessage("");
+      try {
+        const response = await fetch(
+          `/api/papers/${paper.recordId}/brief?reviewProjectId=${encodeURIComponent(reviewProjectId)}`,
+          { method: "GET" }
+        );
+        const data = (await response.json()) as BriefResponse;
+        if (cancelled) return;
+        setBrief(data.brief ?? null);
+        setStatus("idle");
+      } catch (error) {
+        if (cancelled) return;
+        setBrief(null);
+        setStatus("error");
+        setMessage(error instanceof Error ? error.message : "Unable to load brief");
+      }
+    }
+
+    void loadBrief();
+    return () => {
+      cancelled = true;
+    };
+  }, [paper, reviewProjectId]);
 
   if (!paper) return <p className="text-sm text-swiss-muted">No paper selected.</p>;
 
   const generate = async () => {
     setStatus("loading");
     setMessage("");
-    setBrief(null);
     try {
       const response = await fetch(`/api/papers/${paper.recordId}/brief`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ payloadScope: "Selection" })
+        body: JSON.stringify({
+          reviewProjectId,
+          payloadScope: "Paper sections",
+          modelSettings
+        })
       });
       const data = (await response.json()) as BriefResponse;
       if (!response.ok || !data.brief) throw new Error(data.error ?? "Unable to generate brief");

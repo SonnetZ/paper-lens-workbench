@@ -1,13 +1,21 @@
 import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppConfig } from "@/lib/types";
 import {
   getPaperByRecordId,
   loadPaperQueue,
-  readMarkdownForPaper
+  readMarkdownForPaper,
+  readPdfTextForPaper
 } from "@/lib/server/sourceRegistry";
+
+const pdfjsMock = vi.hoisted(() => ({
+  GlobalWorkerOptions: { workerSrc: "" },
+  getDocument: vi.fn()
+}));
+
+vi.mock("pdfjs-dist/legacy/build/pdf.mjs", () => pdfjsMock);
 
 async function makeConfig(): Promise<AppConfig> {
   const root = await mkdtemp(path.join(os.tmpdir(), "reader-registry-"));
@@ -44,6 +52,11 @@ async function makeConfig(): Promise<AppConfig> {
 }
 
 describe("source registry", () => {
+  beforeEach(() => {
+    pdfjsMock.GlobalWorkerOptions.workerSrc = "";
+    pdfjsMock.getDocument.mockReset();
+  });
+
   it("loads queue and resolves markdown and pdf availability", async () => {
     const config = await makeConfig();
 
@@ -72,5 +85,25 @@ describe("source registry", () => {
     const config = await makeConfig();
 
     await expect(getPaperByRecordId(config, "FT9999")).resolves.toBeNull();
+  });
+
+  it("sets the pdf.js worker path before extracting server-side PDF text", async () => {
+    const config = await makeConfig();
+    pdfjsMock.getDocument.mockImplementation(() => ({
+      promise: Promise.resolve({
+        numPages: 1,
+        getPage: async () => ({
+          getTextContent: async () => ({ items: [{ str: "PDF extracted text" }] })
+        }),
+        destroy: vi.fn()
+      })
+    }));
+
+    const result = await readPdfTextForPaper(config, "FT0001");
+
+    expect(result?.content).toContain("PDF extracted text");
+    expect(pdfjsMock.GlobalWorkerOptions.workerSrc).toMatch(
+      /^file:\/\/.*\/node_modules\/pdfjs-dist\/legacy\/build\/pdf\.worker\.mjs$/
+    );
   });
 });

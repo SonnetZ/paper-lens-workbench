@@ -52,6 +52,42 @@ describe("evidence store", () => {
     expect(packets[0].pdfVerificationNote).toBe("Verified against PDF p. 6.");
   });
 
+  it("keeps evidence packets isolated by review project", async () => {
+    const config = await makeConfig();
+
+    saveEvidencePacket(config, {
+      recordId: "FT0001",
+      reviewProjectId: "project-a",
+      sourceFormat: "manual",
+      sourcePath: null,
+      evidenceLocator: "Memo A",
+      quoteSnippet: "",
+      headingPath: null,
+      pageNumber: null,
+      reviewerNote: "Project A note.",
+      pdfVerificationNote: ""
+    });
+    saveEvidencePacket(config, {
+      recordId: "FT0001",
+      reviewProjectId: "project-b",
+      sourceFormat: "manual",
+      sourcePath: null,
+      evidenceLocator: "Memo B",
+      quoteSnippet: "",
+      headingPath: null,
+      pageNumber: null,
+      reviewerNote: "Project B note.",
+      pdfVerificationNote: ""
+    });
+
+    expect(listEvidencePackets(config, "FT0001", "project-a").map((item) => item.evidenceLocator)).toEqual([
+      "Memo A"
+    ]);
+    expect(listEvidencePackets(config, "FT0001", "project-b").map((item) => item.evidenceLocator)).toEqual([
+      "Memo B"
+    ]);
+  });
+
   it("rejects evidence without a locator", async () => {
     const config = await makeConfig();
 

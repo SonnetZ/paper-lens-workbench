@@ -76,6 +76,7 @@ export interface PaperListItem extends PaperRecord, SourceAvailability {
 
 export interface EvidencePacket {
   id: string;
+  reviewProjectId: string;
   recordId: string;
   sourceFormat: "markdown" | "pdf" | "manual";
   sourcePath: string | null;
@@ -88,7 +89,9 @@ export interface EvidencePacket {
   createdAt: string;
 }
 
-export type EvidenceInput = Omit<EvidencePacket, "id" | "createdAt">;
+export type EvidenceInput = Omit<EvidencePacket, "id" | "createdAt" | "reviewProjectId"> & {
+  reviewProjectId?: string;
+};
 
 export type ReviewFieldTarget =
   | "screening.eligibilityRationale"
@@ -142,6 +145,23 @@ export interface ExtractionArtifact extends ExtractionArtifactInput {
   updatedAt: string;
 }
 
+export interface BriefArtifactInput {
+  eligibilitySuggestion: string;
+  rationale: string;
+  readFirst: string[];
+  warnings: string[];
+  payloadScope: PayloadScope;
+  modelSettings?: BriefModelSettings;
+}
+
+export interface BriefArtifact extends BriefArtifactInput {
+  recordId: string;
+  reviewProjectId: string;
+  updatedAt: string;
+}
+
+export type BriefModelSettings = Omit<RuntimeModelSettings, "onlineApiKey">;
+
 export interface ScopedAskInput {
   recordId: string;
   question: string;
@@ -165,6 +185,8 @@ export interface KnowledgeBaseStatus {
   documentCount: number;
   chunkCount: number;
   paperDocumentCount: number;
+  pdfDocumentCount: number;
+  markdownDocumentCount: number;
   artifactDocumentCount: number;
   evidenceDocumentCount: number;
   embeddingModel: string;
@@ -183,7 +205,7 @@ export interface KnowledgeSearchResult {
   chunkId: string;
   documentId: string;
   recordId: string;
-  sourceKind: "paper" | "artifact" | "evidence";
+  sourceKind: "paper" | "pdf" | "artifact" | "evidence";
   sourceId: string;
   headingPath: string;
   text: string;

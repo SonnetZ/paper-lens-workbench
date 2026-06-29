@@ -91,7 +91,7 @@ describe("ModelSourceControl", () => {
     expect(screen.queryByDisplayValue("sk-saved")).not.toBeInTheDocument();
   });
 
-  it("uses the configured Codex credential source by default when available", async () => {
+  it("shows the configured Codex credential source without updating the parent during render", async () => {
     const onChange = vi.fn();
     vi.stubGlobal(
       "fetch",
@@ -109,15 +109,14 @@ describe("ModelSourceControl", () => {
 
     render(<ModelSourceControl value={defaultSettings()} onChange={onChange} />);
 
-    await waitFor(() =>
-      expect(onChange).toHaveBeenCalledWith(
-        expect.objectContaining({ onlineConfigSource: "cc_switch" })
-      )
-    );
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith("/api/model-config"));
+    expect(onChange).not.toHaveBeenCalled();
+
     await userEvent.click(screen.getByRole("button", { name: "Online" }));
 
     expect(screen.getByLabelText("Credential source")).toHaveValue("cc_switch");
     expect(screen.queryByLabelText("Manual API key")).not.toBeInTheDocument();
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ onlineConfigSource: "cc_switch" }));
   });
 
   it("tests an online provider using configured environment settings", async () => {

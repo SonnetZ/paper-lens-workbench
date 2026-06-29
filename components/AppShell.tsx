@@ -57,14 +57,18 @@ export function AppShell({ initialPapers }: Props) {
     setEvidenceStatus("loading");
     setEvidenceMessage("");
 
-    fetch(`/api/evidence?recordId=${encodeURIComponent(selectedRecordId)}`)
+    fetch(
+      `/api/evidence?recordId=${encodeURIComponent(selectedRecordId)}&reviewProjectId=${encodeURIComponent(
+        knowledgeBaseId
+      )}`
+    )
       .then((response) => {
         if (!response.ok) throw new Error("Evidence packets not available");
         return response.json();
       })
-      .then((data: { evidence: EvidencePacket[] }) => {
+      .then((data: { evidence?: EvidencePacket[] }) => {
         if (cancelled) return;
-        setEvidence(data.evidence);
+        setEvidence(Array.isArray(data.evidence) ? data.evidence : []);
         setEvidenceStatus("idle");
       })
       .catch((error: Error) => {
@@ -77,7 +81,7 @@ export function AppShell({ initialPapers }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [selectedRecordId]);
+  }, [selectedRecordId, knowledgeBaseId]);
 
   const saveEvidence = async (input: EvidenceInput) => {
     setEvidenceStatus("saving");
@@ -86,11 +90,11 @@ export function AppShell({ initialPapers }: Props) {
       const response = await fetch("/api/evidence", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(input)
+        body: JSON.stringify({ ...input, reviewProjectId: knowledgeBaseId })
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "Unable to save evidence");
-      setEvidence((items) => [data.evidence, ...items]);
+      if (data.evidence) setEvidence((items) => [data.evidence, ...items]);
       setEvidenceStatus("idle");
     } catch (error) {
       setEvidenceStatus("error");

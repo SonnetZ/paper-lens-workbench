@@ -10,7 +10,10 @@ import {
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const recordId = url.searchParams.get("recordId") ?? undefined;
-  return NextResponse.json({ evidence: listEvidencePackets(resolveAppConfig(), recordId) });
+  const reviewProjectId = url.searchParams.get("reviewProjectId") ?? undefined;
+  return NextResponse.json({
+    evidence: listEvidencePackets(resolveAppConfig(), recordId, reviewProjectId)
+  });
 }
 
 export async function POST(request: Request) {

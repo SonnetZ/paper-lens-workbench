@@ -4,10 +4,24 @@ import { getEffectiveAppConfig } from "@/lib/server/corpusConfig";
 import {
   defaultKnowledgeBaseId,
   getKnowledgeBaseStatus,
-  ingestPaperMarkdown,
+  ingestPaperSource,
   ingestReviewArtifacts,
+  isPaperSourceIndexed,
   listKnowledgeBases
 } from "@/lib/server/knowledgeBase";
+
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ recordId: string }> }
+) {
+  const { recordId } = await params;
+  const config = getEffectiveAppConfig(resolveAppConfig());
+  const knowledgeBaseId =
+    new URL(request.url).searchParams.get("knowledgeBaseId") ?? defaultKnowledgeBaseId;
+  return NextResponse.json({
+    indexed: isPaperSourceIndexed(config, recordId, knowledgeBaseId)
+  });
+}
 
 export async function POST(
   request: Request,
@@ -24,7 +38,7 @@ export async function POST(
     const knowledgeBaseId = body.knowledgeBaseId || defaultKnowledgeBaseId;
     const results = [];
     if (body.includePaper !== false) {
-      results.push(await ingestPaperMarkdown(config, recordId, knowledgeBaseId));
+      results.push(await ingestPaperSource(config, recordId, knowledgeBaseId));
     }
     if (body.includeArtifacts) {
       results.push(ingestReviewArtifacts(config, recordId, knowledgeBaseId));

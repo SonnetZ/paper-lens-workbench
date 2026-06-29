@@ -76,7 +76,6 @@ export function ModelSourceControl({
               ...current,
               onlineConfigSource: data.config.online.configSource
             };
-            onChange(next);
             return next;
           }
           return current;

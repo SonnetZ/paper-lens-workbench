@@ -1,5 +1,6 @@
 CREATE TABLE IF NOT EXISTS evidence_packets (
   id TEXT PRIMARY KEY,
+  review_project_id TEXT NOT NULL DEFAULT 'default',
   record_id TEXT NOT NULL,
   source_format TEXT NOT NULL,
   source_path TEXT,
@@ -29,6 +30,19 @@ CREATE TABLE IF NOT EXISTS extraction_artifacts (
   synthesis_note TEXT NOT NULL DEFAULT '',
   evidence_locator TEXT NOT NULL DEFAULT '',
   updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS brief_artifacts (
+  review_project_id TEXT NOT NULL DEFAULT 'default',
+  record_id TEXT NOT NULL,
+  eligibility_suggestion TEXT NOT NULL DEFAULT '',
+  rationale TEXT NOT NULL DEFAULT '',
+  read_first_json TEXT NOT NULL DEFAULT '[]',
+  warnings_json TEXT NOT NULL DEFAULT '[]',
+  payload_scope TEXT NOT NULL DEFAULT 'Paper sections',
+  model_settings_json TEXT,
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (review_project_id, record_id)
 );
 
 CREATE TABLE IF NOT EXISTS knowledge_bases (

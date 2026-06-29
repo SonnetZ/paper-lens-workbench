@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import path from "node:path";
 import type {
   AppConfig,
   KnowledgeBaseStatus,
@@ -8,9 +9,14 @@ import type {
 import { listEvidencePackets } from "@/lib/server/evidence";
 import { readExtractionArtifact } from "@/lib/server/extraction";
 import { openReaderDb } from "@/lib/server/sqliteStore";
-import { getPaperByRecordId, loadPaperQueue, readMarkdownForPaper } from "@/lib/server/sourceRegistry";
+import {
+  getPaperByRecordId,
+  loadPaperQueue,
+  readMarkdownForPaper,
+  readPdfTextForPaper
+} from "@/lib/server/sourceRegistry";
 
-export type KnowledgeSourceKind = "paper" | "artifact" | "evidence";
+export type KnowledgeSourceKind = "paper" | "pdf" | "artifact" | "evidence";
 
 export interface KnowledgeIngestResult {
   documentCount: number;
@@ -133,6 +139,35 @@ export async function ingestPaperMarkdown(
   });
 }
 
+export async function ingestPaperSource(
+  config: AppConfig,
+  recordId: string,
+  knowledgeBaseId = defaultKnowledgeBaseId,
+  extractPdfText: (
+    config: AppConfig,
+    recordId: string
+  ) => Promise<{ content: string; path: string } | string | null> = readPdfTextForPaper
+): Promise<KnowledgeIngestResult> {
+  const paper = await getPaperByRecordId(config, recordId);
+  if (!paper) throw new Error(`Paper not found: ${recordId}`);
+  if (paper.hasPdf) {
+    const extracted = await extractPdfText(config, recordId);
+    const pdf = typeof extracted === "string" ? { content: extracted, path: paper.pdfPath } : extracted;
+    if (!pdf?.content.trim()) throw new Error(`PDF text not found for paper: ${recordId}`);
+    ensureKnowledgeBase(config, knowledgeBaseId);
+    return upsertKnowledgeDocument(config, {
+      knowledgeBaseId,
+      recordId,
+      sourceKind: "pdf",
+      sourceId: path.basename(pdf.path ?? paper.pdfPath ?? paper.sourceFilename ?? paper.recordId),
+      sourcePath: pdf.path,
+      title: paper.title || paper.sourceFilename || paper.recordId,
+      content: pdf.content
+    });
+  }
+  return ingestPaperMarkdown(config, recordId, knowledgeBaseId);
+}
+
 export async function ingestCorpusMarkdown(
   config: AppConfig,
   options: { knowledgeBaseId?: string } = {}
@@ -143,8 +178,8 @@ export async function ingestCorpusMarkdown(
   let documentCount = 0;
   let chunkCount = 0;
   for (const paper of papers) {
-    if (!paper.hasMarkdown) continue;
-    const result = await ingestPaperMarkdown(config, paper.recordId, knowledgeBaseId);
+    if (!paper.hasMarkdown && !paper.hasPdf) continue;
+    const result = await ingestPaperSource(config, paper.recordId, knowledgeBaseId);
     documentCount += result.documentCount;
     chunkCount += result.chunkCount;
   }
@@ -184,7 +219,7 @@ export function ingestReviewArtifacts(
     );
   }
 
-  const evidencePackets = listEvidencePackets(config, recordId);
+  const evidencePackets = listEvidencePackets(config, recordId, knowledgeBaseId);
   const evidenceContent = evidencePackets
     .map((packet) => {
       const body = packet.quoteSnippet || packet.reviewerNote;
@@ -238,7 +273,9 @@ export function getKnowledgeBaseStatus(
     .prepare(
       `SELECT
         COUNT(*) AS document_count,
-        SUM(CASE WHEN source_kind = 'paper' THEN 1 ELSE 0 END) AS paper_document_count,
+        SUM(CASE WHEN source_kind IN ('paper', 'pdf') THEN 1 ELSE 0 END) AS paper_document_count,
+        SUM(CASE WHEN source_kind = 'pdf' THEN 1 ELSE 0 END) AS pdf_document_count,
+        SUM(CASE WHEN source_kind = 'paper' THEN 1 ELSE 0 END) AS markdown_document_count,
         SUM(CASE WHEN source_kind = 'artifact' THEN 1 ELSE 0 END) AS artifact_document_count,
         SUM(CASE WHEN source_kind = 'evidence' THEN 1 ELSE 0 END) AS evidence_document_count,
         MAX(updated_at) AS updated_at
@@ -248,6 +285,8 @@ export function getKnowledgeBaseStatus(
     .get(baseId) as {
     document_count: number;
     paper_document_count: number | null;
+    pdf_document_count: number | null;
+    markdown_document_count: number | null;
     artifact_document_count: number | null;
     evidence_document_count: number | null;
     updated_at: string | null;
@@ -262,11 +301,31 @@ export function getKnowledgeBaseStatus(
     documentCount: documentRow.document_count,
     chunkCount: chunkRow.chunk_count,
     paperDocumentCount: documentRow.paper_document_count ?? 0,
+    pdfDocumentCount: documentRow.pdf_document_count ?? 0,
+    markdownDocumentCount: documentRow.markdown_document_count ?? 0,
     artifactDocumentCount: documentRow.artifact_document_count ?? 0,
     evidenceDocumentCount: documentRow.evidence_document_count ?? 0,
     embeddingModel,
     updatedAt: documentRow.updated_at
   };
+}
+
+export function isPaperSourceIndexed(
+  config: AppConfig,
+  recordId: string,
+  knowledgeBaseId = defaultKnowledgeBaseId
+): boolean {
+  const db = openReaderDb(config.readerDbPath);
+  const row = db
+    .prepare(
+      `SELECT 1
+       FROM knowledge_documents
+       WHERE knowledge_base_id = ? AND record_id = ? AND source_kind IN ('paper', 'pdf')
+       LIMIT 1`
+    )
+    .get(normalizeKnowledgeBaseId(knowledgeBaseId), recordId);
+  db.close();
+  return Boolean(row);
 }
 
 export function searchKnowledgeBase(
@@ -319,6 +378,27 @@ function upsertKnowledgeDocument(
     input.sourceId
   ]);
   const db = openReaderDb(config.readerDbPath);
+  if (input.sourceKind === "paper" || input.sourceKind === "pdf") {
+    const staleDocuments = db
+      .prepare(
+        `SELECT id
+         FROM knowledge_documents
+         WHERE knowledge_base_id = ?
+           AND record_id = ?
+           AND source_kind IN ('paper', 'pdf')
+           AND source_kind != ?`
+      )
+      .all(input.knowledgeBaseId, input.recordId, input.sourceKind) as Array<{ id: string }>;
+    const deleteChunks = db.prepare("DELETE FROM knowledge_chunks WHERE document_id = ?");
+    staleDocuments.forEach((document) => deleteChunks.run(document.id));
+    db.prepare(
+      `DELETE FROM knowledge_documents
+       WHERE knowledge_base_id = ?
+         AND record_id = ?
+         AND source_kind IN ('paper', 'pdf')
+         AND source_kind != ?`
+    ).run(input.knowledgeBaseId, input.recordId, input.sourceKind);
+  }
 
   db.prepare(
     `INSERT INTO knowledge_documents

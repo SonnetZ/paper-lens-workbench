@@ -195,6 +195,7 @@ export function MarkdownReader({ recordId, sourcePath, markdown, modelSettings, 
 function evidenceInputToPacket(input: EvidenceInput): EvidencePacket {
   return {
     ...input,
+    reviewProjectId: input.reviewProjectId ?? "default",
     id: "unsaved-selection",
     createdAt: new Date(0).toISOString()
   };

@@ -12,8 +12,10 @@ function validate(input: EvidenceInput) {
 
 export function saveEvidencePacket(config: AppConfig, input: EvidenceInput): EvidencePacket {
   validate(input);
+  const reviewProjectId = input.reviewProjectId?.trim() || "default";
   const packet: EvidencePacket = {
     id: `ev_${crypto.randomUUID()}`,
+    reviewProjectId,
     recordId: input.recordId,
     sourceFormat: input.sourceFormat,
     sourcePath: input.sourcePath,
@@ -29,24 +31,40 @@ export function saveEvidencePacket(config: AppConfig, input: EvidenceInput): Evi
   const db = openReaderDb(config.readerDbPath);
   db.prepare(
     `INSERT INTO evidence_packets
-      (id, record_id, source_format, source_path, evidence_locator, quote_snippet, heading_path, page_number, reviewer_note, pdf_verification_note, created_at)
+      (id, review_project_id, record_id, source_format, source_path, evidence_locator, quote_snippet, heading_path, page_number, reviewer_note, pdf_verification_note, created_at)
      VALUES
-      (@id, @recordId, @sourceFormat, @sourcePath, @evidenceLocator, @quoteSnippet, @headingPath, @pageNumber, @reviewerNote, @pdfVerificationNote, @createdAt)`
+      (@id, @reviewProjectId, @recordId, @sourceFormat, @sourcePath, @evidenceLocator, @quoteSnippet, @headingPath, @pageNumber, @reviewerNote, @pdfVerificationNote, @createdAt)`
   ).run(packet);
   db.close();
   return packet;
 }
 
-export function listEvidencePackets(config: AppConfig, recordId?: string): EvidencePacket[] {
+export function listEvidencePackets(
+  config: AppConfig,
+  recordId?: string,
+  reviewProjectId?: string
+): EvidencePacket[] {
+  const projectId = reviewProjectId?.trim();
   const db = openReaderDb(config.readerDbPath);
-  const rows = recordId
-    ? db.prepare("SELECT * FROM evidence_packets WHERE record_id = ? ORDER BY created_at DESC").all(recordId)
-    : db.prepare("SELECT * FROM evidence_packets ORDER BY created_at DESC").all();
+  const rows = recordId && projectId
+    ? db
+        .prepare(
+          "SELECT * FROM evidence_packets WHERE record_id = ? AND review_project_id = ? ORDER BY created_at DESC"
+        )
+        .all(recordId, projectId)
+    : recordId
+      ? db.prepare("SELECT * FROM evidence_packets WHERE record_id = ? ORDER BY created_at DESC").all(recordId)
+      : projectId
+        ? db
+            .prepare("SELECT * FROM evidence_packets WHERE review_project_id = ? ORDER BY created_at DESC")
+            .all(projectId)
+        : db.prepare("SELECT * FROM evidence_packets ORDER BY created_at DESC").all();
   db.close();
 
   return rows.map((row) => {
     const record = row as {
       id: string;
+      review_project_id: string | null;
       record_id: string;
       source_format: EvidencePacket["sourceFormat"];
       source_path: string | null;
@@ -61,6 +79,7 @@ export function listEvidencePackets(config: AppConfig, recordId?: string): Evide
 
     return {
       id: record.id,
+      reviewProjectId: record.review_project_id ?? "default",
       recordId: record.record_id,
       sourceFormat: record.source_format,
       sourcePath: record.source_path,

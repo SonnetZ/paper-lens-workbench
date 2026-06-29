@@ -118,6 +118,27 @@ describe("PdfReader", () => {
     await waitFor(() => expect(pdfMocks.getPage).toHaveBeenCalledWith(2));
   });
 
+  it("lets the reviewer zoom the rendered PDF from 50 to 200 percent", async () => {
+    render(
+      <PdfReader
+        recordId="FT0001"
+        pdfUrl="/api/papers/FT0001/pdf"
+        sourcePath="/sample/FT0001.pdf"
+        onEvidence={vi.fn()}
+      />
+    );
+
+    const zoom = await screen.findByLabelText("PDF zoom");
+    expect(zoom).toHaveAttribute("min", "0.5");
+    expect(zoom).toHaveAttribute("max", "2");
+    expect(zoom).toHaveAttribute("type", "number");
+
+    fireEvent.change(zoom, { target: { value: "2" } });
+
+    expect(zoom).toHaveValue(2);
+    await waitFor(() => expect(pdfMocks.getPage).toHaveBeenCalledTimes(2));
+  });
+
   it("opens an inline question box for selected PDF text and saves it as evidence", async () => {
     const onEvidence = vi.fn();
     const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
@@ -170,6 +191,7 @@ describe("PdfReader", () => {
 
     const dialog = screen.getByRole("dialog", { name: "Ask about selected text" });
     expect(dialog).toBeInTheDocument();
+    expect(screen.getByLabelText("Drag selection assistant")).toBeInTheDocument();
     await userEvent.type(
       screen.getByLabelText("Question about selection"),
       "What does this say about evaluation?"

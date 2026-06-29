@@ -7,6 +7,7 @@ import type {
 } from "@/lib/types";
 import { searchKnowledgeBase } from "@/lib/server/knowledgeBase";
 import { resolveOnlineApiKey } from "@/lib/server/onlineCredentials";
+import { getPaperByRecordId, readMarkdownForPaper, readPdfTextForPaper } from "@/lib/server/sourceRegistry";
 
 export function createMockBrief(recordId: string) {
   return {
@@ -28,8 +29,64 @@ export function assertAllowedBriefRequest(config: AppConfig, payloadScope: Paylo
     throw new Error("Payload scope is required for local or online model calls");
   }
   if (payloadScope === "Full paper") {
-    throw new Error("Full-paper model calls are not implemented in phase one");
+    throw new Error("Full-paper model calls are not enabled for brief generation");
   }
+}
+
+export async function generateBrief(
+  config: AppConfig,
+  input: {
+    recordId: string;
+    payloadScope: PayloadScope;
+    modelSettings?: RuntimeModelSettings;
+  },
+  fetchImpl: typeof fetch = fetch
+) {
+  const runtime = resolveRuntimeModelConfig(config, input.modelSettings);
+  assertAllowedBriefRequest(runtime.config, input.payloadScope);
+  if (runtime.config.llmMode === "mock") return createMockBrief(input.recordId);
+
+  const paper = await getPaperByRecordId(config, input.recordId);
+  if (!paper) throw new Error(`Paper not found: ${input.recordId}`);
+  const source = paper.hasPdf
+    ? await readPdfTextForPaper(config, input.recordId)
+    : await readMarkdownForPaper(config, input.recordId);
+  if (!source?.content.trim()) throw new Error("Paper text is not available for brief generation");
+
+  const content = source.content.slice(0, Math.max(1000, runtime.config.llmMaxInputChars));
+  const response = await fetchImpl(`${providerBaseUrl(runtime.config).replace(/\/+$/, "")}/chat/completions`, {
+    method: "POST",
+    headers: providerHeaders(runtime.config, runtime.manualOnlineApiKey),
+    body: JSON.stringify({
+      model: providerModel(runtime.config),
+      temperature: 0.2,
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content:
+            "You help reviewers triage papers for a scoping review. Return compact JSON only."
+        },
+        {
+          role: "user",
+          content: [
+            `record_id: ${paper.recordId}`,
+            `title: ${paper.title}`,
+            `payload_scope: ${input.payloadScope}`,
+            "Return JSON with eligibility_suggestion, rationale, read_first, warnings.",
+            "Focus on whether the paper uses/evaluates LLM or generative AI in qualitative research methods.",
+            "paper_text:",
+            content
+          ].join("\n")
+        }
+      ]
+    })
+  });
+  if (!response.ok) throw new Error(`Brief provider request failed: HTTP ${response.status}`);
+  const json = (await response.json()) as { choices?: Array<{ message?: { content?: string } }> };
+  const contentJson = json.choices?.[0]?.message?.content?.trim();
+  if (!contentJson) throw new Error("Brief provider returned an empty response");
+  return parseBriefJson(input.recordId, contentJson);
 }
 
 export function assertAllowedAskRequest(config: AppConfig, input: ScopedAskInput) {
@@ -239,4 +296,30 @@ function serializeScopedAskInput(
     "retrieved_corpus_chunks:",
     corpusLines || "(none)"
   ].join("\n");
+}
+
+function parseBriefJson(recordId: string, value: string) {
+  try {
+    const parsed = JSON.parse(value) as {
+      eligibility_suggestion?: unknown;
+      rationale?: unknown;
+      read_first?: unknown;
+      warnings?: unknown;
+    };
+    return {
+      recordId,
+      eligibility_suggestion: String(parsed.eligibility_suggestion ?? "maybe"),
+      rationale: String(parsed.rationale ?? ""),
+      read_first: Array.isArray(parsed.read_first) ? parsed.read_first.map(String).slice(0, 6) : [],
+      warnings: Array.isArray(parsed.warnings) ? parsed.warnings.map(String).slice(0, 6) : []
+    };
+  } catch {
+    return {
+      recordId,
+      eligibility_suggestion: "maybe",
+      rationale: value,
+      read_first: [],
+      warnings: ["Provider did not return JSON; showing raw response as rationale."]
+    };
+  }
 }

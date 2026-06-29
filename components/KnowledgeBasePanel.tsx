@@ -16,6 +16,8 @@ const emptyStatus: KnowledgeBaseStatus = {
   documentCount: 0,
   chunkCount: 0,
   paperDocumentCount: 0,
+  pdfDocumentCount: 0,
+  markdownDocumentCount: 0,
   artifactDocumentCount: 0,
   evidenceDocumentCount: 0,
   embeddingModel: "portable-hash-v1",
@@ -53,6 +55,7 @@ export function KnowledgeBasePanel({
   const [status, setStatus] = useState<KnowledgeBaseStatus>(emptyStatus);
   const [query, setQuery] = useState("");
   const [newBaseName, setNewBaseName] = useState("");
+  const [documentIndexed, setDocumentIndexed] = useState(false);
   const [results, setResults] = useState<KnowledgeSearchResult[]>([]);
   const [state, setState] = useState<
     "idle" | "loading" | "creating" | "indexing" | "searching" | "error"
@@ -86,6 +89,29 @@ export function KnowledgeBasePanel({
       cancelled = true;
     };
   }, [activeKnowledgeBaseId]);
+
+  useEffect(() => {
+    if (!paper) {
+      setDocumentIndexed(false);
+      return;
+    }
+    let cancelled = false;
+    fetch(
+      `/api/papers/${paper.recordId}/knowledge?knowledgeBaseId=${encodeURIComponent(
+        activeKnowledgeBaseId
+      )}`
+    )
+      .then((response) => (response.ok ? response.json() : { indexed: false }))
+      .then((data: { indexed?: boolean }) => {
+        if (!cancelled) setDocumentIndexed(Boolean(data.indexed));
+      })
+      .catch(() => {
+        if (!cancelled) setDocumentIndexed(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [paper, activeKnowledgeBaseId]);
 
   const updateKnowledgeBase = (knowledgeBaseId: string) => {
     setLocalKnowledgeBaseId(knowledgeBaseId);
@@ -144,6 +170,7 @@ export function KnowledgeBasePanel({
       if (!response.ok || !data.status) throw new Error(data.error ?? "Unable to build corpus index");
       setBases(data.bases ?? bases);
       setStatus(data.status);
+      if (paper) setDocumentIndexed(true);
       setMessage(`Indexed ${data.ingested?.chunkCount ?? 0} chunk(s) into ${data.status.knowledgeBaseName}.`);
       setState("idle");
     } catch (error) {
@@ -175,6 +202,7 @@ export function KnowledgeBasePanel({
       if (!response.ok || !data.status) throw new Error(data.error ?? "Unable to add knowledge");
       setBases(data.bases ?? bases);
       setStatus(data.status);
+      if (!includeArtifacts) setDocumentIndexed(true);
       setMessage(`Indexed ${data.ingested?.chunkCount ?? 0} chunk(s) into ${data.status.knowledgeBaseName}.`);
       setState("idle");
     } catch (error) {
@@ -298,6 +326,7 @@ export function KnowledgeBasePanel({
         <span>{status.documentCount} documents</span>
         <span>{status.chunkCount} chunks</span>
         <span>{status.paperDocumentCount} paper docs</span>
+        <span>{status.pdfDocumentCount} PDF / {status.markdownDocumentCount} MD</span>
         <span>{status.artifactDocumentCount + status.evidenceDocumentCount} review docs</span>
         <span className="col-span-2">{status.embeddingModel}</span>
       </div>
@@ -316,11 +345,11 @@ export function KnowledgeBasePanel({
           type="button"
           aria-label="Add current paper"
           onClick={() => addCurrent(false)}
-          disabled={!paper || state === "indexing"}
+          disabled={!paper || documentIndexed || state === "indexing"}
           className="workbench-button"
         >
           <Plus aria-hidden="true" size={14} weight="bold" />
-          Add paper
+          {documentIndexed ? "Document indexed" : "Add document"}
         </button>
         <button
           type="button"

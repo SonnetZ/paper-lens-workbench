@@ -10,7 +10,9 @@ import {
   createKnowledgeBase,
   getKnowledgeBaseStatus,
   ingestPaperMarkdown,
+  ingestPaperSource,
   ingestReviewArtifacts,
+  isPaperSourceIndexed,
   listKnowledgeBases,
   searchKnowledgeBase
 } from "@/lib/server/knowledgeBase";
@@ -93,6 +95,28 @@ describe("knowledge base", () => {
     expect(status.chunkCount).toBe(first.chunkCount);
     expect(status.knowledgeBaseName).toBe("Default review");
     expect(status.embeddingModel).toBe("portable-hash-v1");
+  });
+
+  it("prefers PDF over Markdown when indexing a paper source", async () => {
+    const config = await makeConfig();
+    await writeFile(path.join(config.paperPdfDir, "Alpha Study.pdf"), "PDF bytes", "utf-8");
+
+    const result = await ingestPaperSource(
+      config,
+      "FT0001",
+      "default",
+      async () => "PDF extracted text about qualitative interviewing."
+    );
+    const status = getKnowledgeBaseStatus(config);
+
+    expect(result.documentCount).toBe(1);
+    expect(status.paperDocumentCount).toBe(1);
+    expect(status.pdfDocumentCount).toBe(1);
+    expect(status.markdownDocumentCount).toBe(0);
+    expect(isPaperSourceIndexed(config, "FT0001", "default")).toBe(true);
+    expect(searchKnowledgeBase(config, "qualitative interviewing")[0]).toMatchObject({
+      sourceKind: "pdf"
+    });
   });
 
   it("searches indexed paper chunks with source metadata", async () => {

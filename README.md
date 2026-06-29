@@ -1,160 +1,133 @@
 # Paper Lens Workbench
 
-A local, portable web app for LLM-assisted paper reading, PDF/Markdown evidence capture, screening, extraction, and corpus-level review work.
+Paper Lens Workbench is a local web app for reading papers with LLM assistance. It supports PDF and Markdown reading, selected-text evidence capture, full-text screening notes, extraction notes, project-scoped knowledge bases, and corpus-level question answering.
 
-The app is intentionally self-contained. It can be copied, archived, and shared
-as a standalone project without private corpora or local runtime state.
+It is designed as a portable app box: clone or copy this directory, install dependencies, point it at your review corpus, and keep all review data on your own machine.
+
+## Requirements
+
+- Node.js 20 or newer
+- npm
+- A machine that can install native Node packages
+
+The app uses `better-sqlite3`, so you do not need to install or run a separate SQLite server. The local database is a normal file such as `reader.sqlite`.
 
 ## Quick Start
 
 ```bash
 npm install
 cp .env.example .env.local
-npm run dev
+npm run dev -- -p 3000
 ```
 
-Open the local URL printed by Next.js.
+Open the URL printed by Next.js.
 
-## Portable App Box
+The sample configuration uses synthetic data in `sample-data/`, so the app can launch before you connect a private corpus.
 
-This directory is designed to be copied or cloned as a self-contained app:
+## Review Corpus Setup
 
-```bash
-cd /path/to/paper-lens-workbench
-npm install
-cp .env.example .env.local
-npm run portable:check
-npm run dev
-```
-
-To create a clean archive for sharing:
-
-```bash
-npm run portable:smoke
-npm run portable:pack
-```
-
-The archive is written to `dist/paper-lens-workbench-0.1.0-portable.tar.gz`.
-It includes source code, migrations, tests, docs, and synthetic sample data.
-It excludes generated and private local state such as `node_modules/`, `.next/`,
-`test-results/`, `playwright-report/`, `exports/`, `.env`, `.env.*`,
-`*.sqlite`, `*.sqlite3`, `*.sqlite-wal`, `*.sqlite-shm`, and `*.db`.
-
-To test the archive without touching your working copy:
-
-```bash
-mkdir -p /tmp/paper-lens-check
-tar -xzf dist/paper-lens-workbench-0.1.0-portable.tar.gz -C /tmp/paper-lens-check
-cd /tmp/paper-lens-check/paper-lens-workbench
-npm install
-cp .env.example .env.local
-npm run portable:check
-npm run dev
-```
-
-## Data Paths
-
-The app can configure review data paths from the `Corpus setup` panel in the
-left sidebar. Paste local absolute paths for:
-
-- Review data folder
-- Markdown papers folder
-- PDF papers folder
-
-Click `Save corpus paths`. The server checks for `full_text_screening.csv`,
-counts Markdown/PDF files, saves the paths in the local SQLite database, and
-reloads the paper queue without requiring a restart.
-
-The app also reads initial fallback paths from environment variables:
-
-- `REVIEW_DATA_DIR`: directory containing `full_text_screening.csv` and `controlled_vocabularies.json`
-- `PAPER_MD_DIR`: directory containing Markdown paper conversions
-- `PAPER_PDF_DIR`: directory containing source PDFs
-- `READER_DB_PATH`: local SQLite database for evidence packets and app artifacts
-
-The default `.env.example` points to synthetic `sample-data/` so the app can run without the private full review corpus.
-
-To use a real review corpus after copying the app, edit `.env.local`:
+You can configure paths in the app from the corpus setup panel, or edit `.env.local`.
 
 ```bash
 REVIEW_DATA_DIR=/absolute/path/to/review_data
 PAPER_MD_DIR=/absolute/path/to/papers_md
 PAPER_PDF_DIR=/absolute/path/to/papers_pdf
 READER_DB_PATH=/absolute/path/to/reader.sqlite
+READER_EXPORT_DIR=/absolute/path/to/exports
 ```
 
-Keep `.env.local` private. API keys, private corpus paths, generated evidence
-databases, and local exports are never packaged by `npm run portable:pack`.
+`REVIEW_DATA_DIR` should contain `full_text_screening.csv`. When you save corpus paths, the app checks the paper folders and can add missing base rows for discovered paper files.
 
-## Model Sources
+## Reading And Evidence
 
-The model picker in the review workspace is session-level. It lets a reviewer
-choose Local or Online without rewriting `.env.local`.
+The reader opens Markdown or PDF sources. PDF is the preferred source when both PDF and Markdown exist; Markdown remains useful for converted files and easier text reading.
 
-- Local: enter a port and model name. The connection test only calls
-  `GET /v1/models`.
-- Online manual key: paste a key for the current browser session. The key is
-  sent only to this local server for the scoped request and is not written to
-  disk.
-- Online environment key: set `ONLINE_LLM_API_KEY` in `.env.local`.
-- Online CC switch / Codex config: reads OpenAI-compatible settings visible to
-  the Paper Lens server process: `ONLINE_LLM_*`, provider `base_url` / `model`
-  values in `CODEX_HOME/config.toml`, provider token fields such as
-  `experimental_bearer_token`, `api_key`, `bearer_token`, or `token`, and a
-  string API key in `CODEX_HOME/auth.json` or `~/.codex/auth.json`. If
-  `ONLINE_LLM_CONFIG_SOURCE` is blank, the app automatically uses configured
-  environment variables or Codex provider config before falling back to manual.
-  It cannot use the hidden auth token from this Codex chat session.
+Select text in PDF or Markdown to save an evidence packet, ask about the selected passage, or translate the passage. Manual reviewer notes can also be saved as evidence.
 
-The app sends only reviewer-selected evidence packets or retrieved knowledge
-base chunks to Local or Online models. Full-paper model calls remain blocked.
+Evidence is isolated by the selected review project knowledge base. Switching from one knowledge base to another gives that project its own evidence tray and review-context layer.
 
 ## Knowledge Bases
 
-The Corpus `Knowledge base` card supports multiple named RAG indexes in the
-same local SQLite database. Create one knowledge base per review project, select
-it, then add paper text, current-paper review artifacts, or included-paper review
-outputs. `Knowledge search` and AI Help `Ask` use the currently selected
-knowledge base.
+Each knowledge base is a review project namespace. The selected knowledge base controls:
 
-Example: create `Scoping review A`, add included review outputs, search
-`prompt transparency`, then switch to `Scoping review B`. Results from A will not
-appear in B unless you add them there too.
+- saved evidence visibility
+- document indexing
+- review artifact indexing
+- knowledge search
+- corpus retrieval for Ask
 
-## Selection Translation
+The minimal RAG store has two layers:
 
-Start the default local English-to-Chinese translator in a second terminal:
+- document layer: extracted paper text chunks, preferring PDF over Markdown
+- review layer: extraction artifacts and saved evidence packets
+
+Use `Build index` to index the corpus. If a paper has both PDF and Markdown, only the PDF text is indexed. Use `Add document` for the current paper; once indexed in the selected project, the button shows `Document indexed`.
+
+The current embedding backend is `portable-hash-v1`, a dependency-free local baseline for portable search. `.env.example` includes optional model names such as `BAAI/bge-m3` and `BAAI/bge-reranker-v2-m3` for future stronger retrieval backends, but this version does not download or run those models automatically.
+
+## Models
+
+The model source panel supports mock mode, local OpenAI-compatible servers, and online OpenAI-compatible providers.
+
+Local example:
 
 ```bash
-npm run translate:opus
+LOCAL_LLM_BASE_URL=http://localhost:8000/v1
+LOCAL_LLM_MODEL=your-local-model
 ```
 
-Select text in Markdown or PDF, then click `Translate selection`. The default
-provider calls `Helsinki-NLP/opus-mt-en-zh` through
-`TRANSLATION_OPUS_BASE_URL`; the same popup can switch to the configured Local
-or Online LLM.
+Online example:
 
-## Health Check
-
-After starting the app, `GET /api/health` should return:
-
-```json
-{ "ok": true, "app": "paper-lens-workbench" }
+```bash
+ONLINE_LLM_BASE_URL=https://api.openai.com/v1
+ONLINE_LLM_API_KEY=your-api-key
+ONLINE_LLM_MODEL=gpt-4.1-mini
+ONLINE_LLM_CONFIG_SOURCE=env
 ```
 
-## Local LLM Safety
+Manual API keys entered in the browser are sent only to the local Next.js server for that request and are not written to disk. Environment and CC-switch/Codex-style config sources are read by the server process.
 
-Automated tests and setup checks must not send full paper text to `localhost:8000`. The local connection test calls only `GET /v1/models`.
+Model-assisted features send scoped payloads:
+
+- selected evidence for selection Ask
+- retrieved knowledge chunks for corpus Ask
+- bounded paper text for Brief
+
+The app does not send an unrestricted full paper by default.
+
+## Translation
+
+Recommended local translation setup for this project is `en↔zh` with OPUS-MT, running in the existing `lit_reviewer` conda environment:
+
+```bash
+conda run -n lit_reviewer python scripts/opus_mt_translate_server.py --host 127.0.0.1 --port 8010 --model Helsinki-NLP/opus-mt-en-zh
+```
+
+Then point the app at it with:
+
+```bash
+TRANSLATION_OPUS_BASE_URL=http://127.0.0.1:8010
+```
+
+This starts the helper server in `scripts/opus_mt_translate_server.py` and uses `TRANSLATION_OPUS_BASE_URL` from `.env.local`. You can also use the configured local or online LLM for selection translation.
+
+## Portable Packaging
+
+Check and pack the app:
+
+```bash
+npm run portable:check
+npm run portable:pack
+```
+
+The archive excludes private runtime state such as `.env.local`, SQLite databases, exports, `node_modules`, build output, and test reports.
 
 ## Verification
 
 ```bash
-npm run portable:check
-npm run portable:smoke
 npm test
-npm run lint
+npm run portable:check
 npm run build
-npm run e2e
 ```
 
-These commands must pass in mock mode. They must not send full paper text to local port `8000`.
+Run `npm run e2e` when you need browser-flow verification.
