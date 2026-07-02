@@ -146,6 +146,7 @@ export function ReviewWorkspace({
               paper={paper}
               selectedKnowledgeBaseId={knowledgeBaseId}
               onKnowledgeBaseChange={onKnowledgeBaseChange}
+              modelSettings={modelSettings}
             />
           </ArtifactView>
         </WorkspaceModePanel>
@@ -185,6 +186,7 @@ export function ReviewWorkspace({
               paper={paper}
               selectedKnowledgeBaseId={knowledgeBaseId}
               onKnowledgeBaseChange={onKnowledgeBaseChange}
+              modelSettings={modelSettings}
             />
           </ArtifactView>
         </WorkspaceModePanel>

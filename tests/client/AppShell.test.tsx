@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { EvidencePacket, PaperListItem } from "@/lib/types";
@@ -125,10 +125,48 @@ describe("AppShell evidence persistence", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Collapse review workspace" }));
     expect(screen.getByRole("button", { name: "Expand review workspace" })).toBeInTheDocument();
-    expect(screen.getByRole("main")).toHaveClass("lg:grid-cols-[300px_minmax(0,1fr)_44px]");
+    expect(screen.getByRole("main").getAttribute("style")).toContain(
+      "--workspace-column-width: 44px"
+    );
 
     await userEvent.click(screen.getByRole("button", { name: "Expand review workspace" }));
     expect(screen.getByRole("button", { name: "Collapse review workspace" })).toBeInTheDocument();
+  });
+
+  it("lets readers resize the three workspace columns", async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url === "/api/evidence?recordId=FT0001&reviewProjectId=default") {
+        return Response.json({ evidence: [] });
+      }
+      if (url === "/api/papers/FT0001/screening") {
+        return Response.json({ screening: screeningRow() });
+      }
+      if (url === "/api/papers/FT0001/extraction") {
+        return Response.json({ extraction: extractionArtifact() });
+      }
+      return Response.json({ content: "" });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<AppShell initialPapers={papers} />);
+
+    expect(screen.getByRole("separator", { name: "Resize paper queue" })).toBeInTheDocument();
+    expect(screen.getByRole("separator", { name: "Resize review workspace" })).toBeInTheDocument();
+    expect(screen.getByRole("separator", { name: "Resize paper queue" })).toHaveClass(
+      "workspace-column-resizer-overlay"
+    );
+    expect(screen.getByRole("separator", { name: "Resize review workspace" })).toHaveClass(
+      "workspace-column-resizer-overlay"
+    );
+    const main = screen.getByRole("main");
+    expect(main.getAttribute("style")).toContain("--paper-column-width: 300px");
+    expect(main.getAttribute("style")).toContain("--workspace-column-width: 360px");
+
+    fireEvent.pointerDown(screen.getByRole("separator", { name: "Resize paper queue" }), {});
+    fireEvent.pointerMove(window, {});
+    fireEvent.pointerUp(window);
+
+    expect(main.getAttribute("style")).not.toContain("NaNpx");
   });
 
   it("loads persisted evidence for the selected paper", async () => {

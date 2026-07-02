@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import type { PaperListItem } from "@/lib/types";
+import type { PaperListItem, RuntimeModelSettings } from "@/lib/types";
 import { KnowledgeBasePanel } from "@/components/KnowledgeBasePanel";
 
 const paper: PaperListItem = {
@@ -205,6 +205,83 @@ describe("KnowledgeBasePanel", () => {
     await userEvent.click(screen.getByRole("button", { name: "Create knowledge base" }));
     await waitFor(() => expect(onKnowledgeBaseChange).toHaveBeenCalledWith("kb_scope"));
   });
+
+  it("runs corpus synthesis against the selected review-layer knowledge base", async () => {
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      if (String(url).startsWith("/api/knowledge-base") && !init) {
+        return Response.json({
+          bases: [
+            {
+              id: "kb_scope",
+              name: "Scoping review A",
+              documentCount: 4,
+              chunkCount: 18,
+              updatedAt: "2026-06-27T00:00:00.000Z"
+            }
+          ],
+          status: {
+            knowledgeBaseId: "kb_scope",
+            knowledgeBaseName: "Scoping review A",
+            documentCount: 4,
+            chunkCount: 18,
+            paperDocumentCount: 2,
+            pdfDocumentCount: 2,
+            markdownDocumentCount: 0,
+            artifactDocumentCount: 1,
+            evidenceDocumentCount: 1,
+            embeddingModel: "BAAI/bge-m3",
+            updatedAt: "2026-06-27T00:00:00.000Z"
+          }
+        });
+      }
+      if (String(url).startsWith("/api/papers/FT0001/knowledge")) {
+        return Response.json({ indexed: true });
+      }
+      if (url === "/api/knowledge-base/synthesis" && init?.method === "POST") {
+        return Response.json({
+          answer: {
+            question: "How are evaluation practices reported?",
+            knowledgeBaseId: "kb_scope",
+            answer: "Across review artifacts, papers report expert audit and prompt disclosure.",
+            evidenceUsed: ["FT0001 / artifact / Evaluation practices"],
+            warnings: ["Provider response used review-layer knowledge only."]
+          }
+        });
+      }
+      return Response.json({}, { status: 404 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <KnowledgeBasePanel
+        paper={paper}
+        selectedKnowledgeBaseId="kb_scope"
+        modelSettings={localModelSettings()}
+      />
+    );
+
+    await userEvent.type(
+      await screen.findByLabelText("Corpus question"),
+      "How are evaluation practices reported?"
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Synthesize corpus" }));
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/knowledge-base/synthesis",
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({
+            question: "How are evaluation practices reported?",
+            knowledgeBaseId: "kb_scope",
+            modelSettings: localModelSettings()
+          })
+        })
+      )
+    );
+    expect(await screen.findByText(/expert audit and prompt disclosure/)).toBeInTheDocument();
+    expect(screen.getByText("FT0001 / artifact / Evaluation practices")).toBeInTheDocument();
+  });
 });
 
 function status(knowledgeBaseId: string, knowledgeBaseName: string, chunkCount: number) {
@@ -214,9 +291,23 @@ function status(knowledgeBaseId: string, knowledgeBaseName: string, chunkCount: 
     documentCount: chunkCount ? 1 : 0,
     chunkCount,
     paperDocumentCount: chunkCount ? 1 : 0,
+    pdfDocumentCount: 0,
+    markdownDocumentCount: chunkCount ? 1 : 0,
     artifactDocumentCount: 0,
     evidenceDocumentCount: 0,
     embeddingModel: "portable-hash-v1",
     updatedAt: chunkCount ? "2026-06-27T00:00:00.000Z" : null
+  };
+}
+
+function localModelSettings(): RuntimeModelSettings {
+  return {
+    mode: "local",
+    localBaseUrl: "http://localhost:8017/v1",
+    localModel: "qwen-local",
+    onlineBaseUrl: "",
+    onlineModel: "",
+    onlineConfigSource: "manual",
+    onlineApiKey: ""
   };
 }

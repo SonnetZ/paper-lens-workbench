@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import type {
   EvidenceInput,
   EvidencePacket,
@@ -13,6 +14,7 @@ import { EvidenceTray } from "@/components/EvidenceTray";
 import { PaperQueue } from "@/components/PaperQueue";
 import { ReaderShell } from "@/components/ReaderShell";
 import { ReviewWorkspace } from "@/components/ReviewWorkspace";
+import { resizeColumnWidth } from "@/lib/columnResize";
 
 interface Props {
   initialPapers: PaperListItem[];
@@ -34,6 +36,8 @@ export function AppShell({ initialPapers }: Props) {
   const [evidenceRoute, setEvidenceRoute] = useState<EvidenceRouteEvent | null>(null);
   const [paperQueueCollapsed, setPaperQueueCollapsed] = useState(false);
   const [reviewWorkspaceCollapsed, setReviewWorkspaceCollapsed] = useState(false);
+  const [paperColumnWidth, setPaperColumnWidth] = useState(300);
+  const [workspaceColumnWidth, setWorkspaceColumnWidth] = useState(360);
   const [knowledgeBaseId, setKnowledgeBaseId] = useState("default");
   const [evidenceStatus, setEvidenceStatus] = useState<"idle" | "loading" | "saving" | "error">(
     "idle"
@@ -160,17 +164,55 @@ export function AppShell({ initialPapers }: Props) {
     }
   };
 
+  const gridStyle = {
+    "--paper-column-width": `${paperQueueCollapsed ? 44 : paperColumnWidth}px`,
+    "--workspace-column-width": `${reviewWorkspaceCollapsed ? 44 : workspaceColumnWidth}px`
+  } as CSSProperties;
+
+  const startColumnResize = (
+    side: "paper" | "workspace",
+    event: ReactPointerEvent<HTMLDivElement>
+  ) => {
+    event.preventDefault();
+    const startX = event.clientX;
+    if (!Number.isFinite(startX)) return;
+    const startWidth = side === "paper" ? paperColumnWidth : workspaceColumnWidth;
+
+    const onMove = (moveEvent: PointerEvent) => {
+      if (!Number.isFinite(moveEvent.clientX)) return;
+      const delta = moveEvent.clientX - startX;
+      const next = resizeColumnWidth(
+        startWidth,
+        delta,
+        side === "paper" ? "grow-right" : "grow-left"
+      );
+      if (next.collapsed) {
+        if (side === "paper") setPaperQueueCollapsed(true);
+        else setReviewWorkspaceCollapsed(true);
+        return;
+      }
+      if (side === "paper") {
+        setPaperQueueCollapsed(false);
+        setPaperColumnWidth(next.width);
+      } else {
+        setReviewWorkspaceCollapsed(false);
+        setWorkspaceColumnWidth(next.width);
+      }
+    };
+
+    const stop = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", stop);
+    };
+
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", stop);
+  };
+
   return (
     <main
-      className={`grid min-h-[100dvh] grid-cols-1 bg-white text-swiss-ink lg:h-[100dvh] lg:overflow-hidden ${
-        paperQueueCollapsed
-          ? reviewWorkspaceCollapsed
-            ? "lg:grid-cols-[44px_minmax(0,1fr)_44px]"
-            : "lg:grid-cols-[44px_minmax(0,1fr)_360px]"
-          : reviewWorkspaceCollapsed
-            ? "lg:grid-cols-[300px_minmax(0,1fr)_44px]"
-            : "lg:grid-cols-[300px_minmax(0,1fr)_360px]"
-      }`}
+      className="app-shell-grid grid min-h-[100dvh] grid-cols-1 bg-white text-swiss-ink lg:h-[100dvh] lg:overflow-hidden"
+      style={gridStyle}
     >
       <PaperQueue
         papers={papers}
@@ -179,6 +221,13 @@ export function AppShell({ initialPapers }: Props) {
         onSelect={setSelectedRecordId}
         onCorpusApplied={reloadPapers}
         onCollapsedChange={setPaperQueueCollapsed}
+      />
+      <div
+        aria-label="Resize paper queue"
+        aria-orientation="vertical"
+        className="workspace-column-resizer workspace-column-resizer-overlay workspace-column-resizer-left"
+        role="separator"
+        onPointerDown={(event) => startColumnResize("paper", event)}
       />
       <section
         aria-label="Reading column"
@@ -202,6 +251,13 @@ export function AppShell({ initialPapers }: Props) {
           onDeleteEvidence={deleteEvidence}
         />
       </section>
+      <div
+        aria-label="Resize review workspace"
+        aria-orientation="vertical"
+        className="workspace-column-resizer workspace-column-resizer-overlay workspace-column-resizer-right"
+        role="separator"
+        onPointerDown={(event) => startColumnResize("workspace", event)}
+      />
       <ReviewWorkspace
         paper={selectedPaper}
         evidence={evidence}

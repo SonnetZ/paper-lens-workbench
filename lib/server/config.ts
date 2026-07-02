@@ -23,6 +23,11 @@ function resolveOnlineConfigSource(
   return hasConfiguredOnlineProvider(env) ? "cc_switch" : "manual";
 }
 
+function trimTrailingSlash(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed.replace(/\/+$/, "") : undefined;
+}
+
 export function resolveAppConfig(
   env: Record<string, string | undefined> = process.env,
   cwd = process.cwd()
@@ -44,6 +49,9 @@ export function resolveAppConfig(
     onlineLlmModel: env.ONLINE_LLM_MODEL ?? "",
     onlineConfigSource: resolveOnlineConfigSource(env),
     translationOpusBaseUrl: env.TRANSLATION_OPUS_BASE_URL?.trim() || "http://127.0.0.1:8010",
-    llmMaxInputChars: Number.parseInt(env.LLM_MAX_INPUT_CHARS ?? "24000", 10)
+    llmMaxInputChars: Number.parseInt(env.LLM_MAX_INPUT_CHARS ?? "24000", 10),
+    retrievalEmbeddingBaseUrl: trimTrailingSlash(env.RETRIEVAL_EMBEDDING_BASE_URL),
+    retrievalEmbeddingModel: env.RETRIEVAL_EMBEDDING_MODEL?.trim() || undefined,
+    retrievalEmbeddingApiKey: env.RETRIEVAL_EMBEDDING_API_KEY?.trim() || undefined
   };
 }

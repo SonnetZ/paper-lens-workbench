@@ -3,8 +3,17 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AppConfig, EvidencePacket } from "@/lib/types";
-import { answerScopedAsk, assertAllowedAskRequest } from "@/lib/server/llmService";
-import { ingestPaperMarkdown } from "@/lib/server/knowledgeBase";
+import {
+  answerCorpusSynthesis,
+  answerScopedAsk,
+  assertAllowedAskRequest
+} from "@/lib/server/llmService";
+import {
+  ingestPaperMarkdown,
+  ingestReviewArtifacts
+} from "@/lib/server/knowledgeBase";
+import { saveEvidencePacket } from "@/lib/server/evidence";
+import { saveExtractionArtifact } from "@/lib/server/extraction";
 
 const mockConfig: AppConfig = {
   llmMode: "mock",
@@ -228,6 +237,43 @@ describe("scoped Ask service", () => {
     expect(mockConfig.llmMode).toBe("mock");
   });
 
+  it("includes previous chat turns in scoped Ask provider requests", async () => {
+    const fetchImpl = mockChatCompletionFetch("Follow-up answer.");
+
+    await answerScopedAsk(
+      {
+        ...mockConfig,
+        llmMode: "local",
+        localLlmBaseUrl: "http://localhost:8017/v1",
+        localLlmModel: "qwen-runtime"
+      },
+      {
+        recordId: "FT0001",
+        question: "What should I check next?",
+        payloadScope: "Selection",
+        evidence,
+        chatHistory: [
+          {
+            role: "user",
+            content: "What is the evaluation design?"
+          },
+          {
+            role: "assistant",
+            content: "It compares LLM suggestions with human coding."
+          }
+        ]
+      },
+      fetchImpl as unknown as typeof fetch
+    );
+
+    const request = JSON.parse(String(fetchImpl.mock.calls[0][1]?.body));
+    const prompt = JSON.stringify(request);
+    expect(prompt).toContain("chat_history");
+    expect(prompt).toContain("What is the evaluation design?");
+    expect(prompt).toContain("It compares LLM suggestions with human coding.");
+    expect(prompt).toContain("What should I check next?");
+  });
+
   it("uses retrieved corpus chunks for corpus retrieval ask without requiring selected evidence", async () => {
     const root = path.join(os.tmpdir(), `reader-rag-ask-${Date.now()}`);
     const reviewDataDir = path.join(root, "review");
@@ -277,6 +323,198 @@ describe("scoped Ask service", () => {
     expect(JSON.stringify(request)).not.toContain("References");
     expect(answer.evidenceUsed).toContain("FT0001 / Prompting");
     expect(answer.answer).toBe("Retrieved corpus context supports inclusion.");
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  it("answers from the current paper full text without selected evidence", async () => {
+    const root = path.join(os.tmpdir(), `reader-current-full-text-${Date.now()}`);
+    const reviewDataDir = path.join(root, "review");
+    const paperMdDir = path.join(root, "md");
+    const paperPdfDir = path.join(root, "pdf");
+    mkdirSync(reviewDataDir, { recursive: true });
+    mkdirSync(paperMdDir, { recursive: true });
+    mkdirSync(paperPdfDir, { recursive: true });
+    writeFileSync(
+      path.join(reviewDataDir, "full_text_screening.csv"),
+      [
+        "record_id,title,first_author,year,source_filename,source_path,decision,primary_exclusion_reason,eligibility_rationale,typology_relevance_notes,evaluation_relevance_notes,prompting_practices_notes,evidence_locator,review_status,second_review_reason,reviewer,review_date",
+        "FT0001,Alpha Study,Rivera,2026,Alpha.md,Alpha.md,,,,,,,,unreviewed,,,"
+      ].join("\n")
+    );
+    writeFileSync(
+      path.join(paperMdDir, "Alpha.md"),
+      "# Alpha\n\n## Evaluation\n\nThe study compares LLM suggestions with human qualitative coding."
+    );
+    const config = {
+      ...mockConfig,
+      llmMode: "local" as const,
+      reviewDataDir,
+      paperMdDir,
+      paperPdfDir,
+      readerDbPath: path.join(root, "reader.sqlite"),
+      localLlmBaseUrl: "http://localhost:8017/v1",
+      localLlmModel: "qwen-runtime"
+    };
+    const fetchImpl = mockChatCompletionFetch("Current full text supports the answer.");
+
+    const answer = await answerScopedAsk(
+      config,
+      {
+        recordId: "FT0001",
+        question: "How does this paper evaluate the LLM output?",
+        payloadScope: "Current full text",
+        evidence: []
+      },
+      fetchImpl as unknown as typeof fetch
+    );
+
+    const request = JSON.parse(String(fetchImpl.mock.calls[0][1]?.body));
+    const prompt = JSON.stringify(request);
+    expect(prompt).toContain("current_full_text");
+    expect(prompt).toContain("compares LLM suggestions with human qualitative coding");
+    expect(prompt).toContain("evidence_packets:");
+    expect(answer.evidenceUsed).toEqual(["FT0001 / Current full text"]);
+    expect(answer.warnings).toContain("Provider response used current paper full text.");
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  it("synthesizes from all review-layer corpus knowledge instead of top retrieved chunks", async () => {
+    const root = path.join(os.tmpdir(), `reader-corpus-synthesis-${Date.now()}`);
+    const reviewDataDir = path.join(root, "review");
+    const paperMdDir = path.join(root, "md");
+    const paperPdfDir = path.join(root, "pdf");
+    mkdirSync(reviewDataDir, { recursive: true });
+    mkdirSync(paperMdDir, { recursive: true });
+    mkdirSync(paperPdfDir, { recursive: true });
+    writeFileSync(
+      path.join(reviewDataDir, "full_text_screening.csv"),
+      [
+        "record_id,title,first_author,year,source_filename,source_path,decision,primary_exclusion_reason,eligibility_rationale,typology_relevance_notes,evaluation_relevance_notes,prompting_practices_notes,evidence_locator,review_status,second_review_reason,reviewer,review_date",
+        "FT0001,Alpha Study,Rivera,2026,Alpha.md,Alpha.md,include,,,,,,,,,,",
+        "FT0002,Beta Study,Chen,2026,Beta.md,Beta.md,include,,,,,,,,,,"
+      ].join("\n")
+    );
+    writeFileSync(path.join(paperMdDir, "Alpha.md"), "# Alpha\n\nRaw paper text should stay out.");
+    writeFileSync(path.join(paperMdDir, "Beta.md"), "# Beta\n\nRaw paper text should stay out.");
+    const config = {
+      ...mockConfig,
+      llmMode: "local" as const,
+      reviewDataDir,
+      paperMdDir,
+      paperPdfDir,
+      readerDbPath: path.join(root, "reader.sqlite"),
+      localLlmBaseUrl: "http://localhost:8017/v1",
+      localLlmModel: "qwen-runtime"
+    };
+    await ingestPaperMarkdown(config, "FT0001");
+    saveExtractionArtifact(config, "FT0001", {
+      methodTypology: "AI interviewer with human review.",
+      promptingPractices: "Interview prompt disclosed.",
+      evaluationPractices: "Expert audit.",
+      synthesisNote: "Collection pathway.",
+      evidenceLocator: "Methods p. 4"
+    });
+    saveEvidencePacket(config, {
+      recordId: "FT0002",
+      sourceFormat: "manual",
+      sourcePath: null,
+      evidenceLocator: "Reviewer memo",
+      quoteSnippet: "",
+      headingPath: null,
+      pageNumber: null,
+      reviewerNote: "LLM coding suggestions compared with human codes.",
+      pdfVerificationNote: ""
+    });
+    await ingestReviewArtifacts(config, "FT0001");
+    await ingestReviewArtifacts(config, "FT0002");
+    const fetchImpl = mockChatCompletionFetch("Corpus synthesis answer.");
+
+    const answer = await answerCorpusSynthesis(
+      config,
+      {
+        question: "Across included studies, how are AI-assisted qualitative methods evaluated?",
+        knowledgeBaseId: "default"
+      },
+      fetchImpl as unknown as typeof fetch
+    );
+
+    const request = JSON.parse(String(fetchImpl.mock.calls[0][1]?.body));
+    const prompt = JSON.stringify(request);
+    expect(prompt).toContain("review_layer_context");
+    expect(prompt).toContain("record_id: FT0001");
+    expect(prompt).toContain("record_id: FT0002");
+    expect(prompt).toContain("AI interviewer with human review");
+    expect(prompt).toContain("LLM coding suggestions compared with human codes");
+    expect(prompt).not.toContain("Raw paper text should stay out");
+    expect(answer.evidenceUsed).toEqual(
+      expect.arrayContaining(["FT0001 / artifact / Method typology", "FT0002 / evidence / Reviewer memo"])
+    );
+    expect(answer.warnings).toContain("Provider response used review-layer knowledge only.");
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  it("only cites review-layer chunks that fit into the synthesis context", async () => {
+    const root = path.join(os.tmpdir(), `reader-corpus-truncate-${Date.now()}`);
+    const reviewDataDir = path.join(root, "review");
+    const paperMdDir = path.join(root, "md");
+    const paperPdfDir = path.join(root, "pdf");
+    mkdirSync(reviewDataDir, { recursive: true });
+    mkdirSync(paperMdDir, { recursive: true });
+    mkdirSync(paperPdfDir, { recursive: true });
+    writeFileSync(
+      path.join(reviewDataDir, "full_text_screening.csv"),
+      [
+        "record_id,title,first_author,year,source_filename,source_path,decision,primary_exclusion_reason,eligibility_rationale,typology_relevance_notes,evaluation_relevance_notes,prompting_practices_notes,evidence_locator,review_status,second_review_reason,reviewer,review_date",
+        "FT0001,Alpha Study,Rivera,2026,Alpha.md,Alpha.md,include,,,,,,,,,,"
+      ].join("\n")
+    );
+    writeFileSync(path.join(paperMdDir, "Alpha.md"), "# Alpha\n\nPaper text.");
+    const config = {
+      ...mockConfig,
+      llmMode: "local" as const,
+      reviewDataDir,
+      paperMdDir,
+      paperPdfDir,
+      readerDbPath: path.join(root, "reader.sqlite"),
+      localLlmBaseUrl: "http://localhost:8017/v1",
+      localLlmModel: "qwen-runtime",
+      llmMaxInputChars: 1000
+    };
+    saveExtractionArtifact(config, "FT0001", {
+      methodTypology: "Brief artifact note.",
+      promptingPractices: "",
+      evaluationPractices: "",
+      synthesisNote: "",
+      evidenceLocator: "Methods"
+    });
+    saveEvidencePacket(config, {
+      recordId: "FT0001",
+      sourceFormat: "manual",
+      sourcePath: null,
+      evidenceLocator: "Reviewer memo",
+      quoteSnippet: "",
+      headingPath: null,
+      pageNumber: null,
+      reviewerNote: "This evidence packet is intentionally beyond the tiny context budget. ".repeat(80),
+      pdfVerificationNote: ""
+    });
+    await ingestReviewArtifacts(config, "FT0001");
+    const fetchImpl = mockChatCompletionFetch("Truncated synthesis answer.");
+
+    const answer = await answerCorpusSynthesis(
+      config,
+      {
+        question: "What can be synthesized?",
+        knowledgeBaseId: "default"
+      },
+      fetchImpl as unknown as typeof fetch
+    );
+
+    expect(answer.evidenceUsed).toContain("FT0001 / artifact / Method typology");
+    expect(answer.evidenceUsed).not.toContain("FT0001 / evidence / Reviewer memo");
+    expect(answer.warnings).toContain(
+      "Review-layer context was truncated to fit the configured model input limit."
+    );
     rmSync(root, { recursive: true, force: true });
   });
 });

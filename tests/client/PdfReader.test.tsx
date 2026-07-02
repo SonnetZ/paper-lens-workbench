@@ -139,6 +139,29 @@ describe("PdfReader", () => {
     await waitFor(() => expect(pdfMocks.getPage).toHaveBeenCalledTimes(2));
   });
 
+  it("zooms the PDF with Ctrl plus wheel", async () => {
+    render(
+      <PdfReader
+        recordId="FT0001"
+        pdfUrl="/api/papers/FT0001/pdf"
+        sourcePath="/sample/FT0001.pdf"
+        onEvidence={vi.fn()}
+      />
+    );
+
+    const article = await screen.findByRole("article", { name: "Rendered PDF page" });
+    const zoom = await screen.findByLabelText("PDF zoom");
+
+    fireEvent.wheel(article, { ctrlKey: false, deltaY: -120 });
+    expect(zoom).toHaveValue(1);
+
+    fireEvent.wheel(article, { ctrlKey: true, deltaY: -120 });
+    expect(zoom).toHaveValue(1.1);
+
+    fireEvent.wheel(article, { ctrlKey: true, deltaY: 120 });
+    expect(zoom).toHaveValue(1);
+  });
+
   it("opens an inline question box for selected PDF text and saves it as evidence", async () => {
     const onEvidence = vi.fn();
     const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>

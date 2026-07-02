@@ -22,6 +22,15 @@ npm run dev -- -p 3000
 
 Open the URL printed by Next.js.
 
+For the local translation, BGE-M3 embedding, and web app together:
+
+```bash
+npm run dev:local:cpu
+npm run dev:local:gpu
+```
+
+`dev:local:cpu` keeps BGE-M3 on CPU. `dev:local:gpu` runs BGE-M3 on CUDA. The OPUS-MT translation sidecar currently runs on CPU in both modes.
+
 The sample configuration uses synthetic data in `sample-data/`, so the app can launch before you connect a private corpus.
 
 ## Review Corpus Setup
@@ -63,7 +72,26 @@ The minimal RAG store has two layers:
 
 Use `Build index` to index the corpus. If a paper has both PDF and Markdown, only the PDF text is indexed. Use `Add document` for the current paper; once indexed in the selected project, the button shows `Document indexed`.
 
-The current embedding backend is `portable-hash-v1`, a dependency-free local baseline for portable search. `.env.example` includes optional model names such as `BAAI/bge-m3` and `BAAI/bge-reranker-v2-m3` for future stronger retrieval backends, but this version does not download or run those models automatically.
+`Add artifacts` indexes the current paper's extraction notes and saved evidence packets. `Add included outputs` does the same for papers marked `include`.
+
+Without an embedding endpoint, search uses `portable-hash-v1`, a dependency-free local baseline. To use BGE-M3 or another OpenAI-compatible embedding server, set:
+
+```bash
+RETRIEVAL_EMBEDDING_BASE_URL=http://127.0.0.1:8090/v1
+RETRIEVAL_EMBEDDING_MODEL=BAAI/bge-m3
+RETRIEVAL_EMBEDDING_API_KEY=
+```
+
+Start the bundled BGE-M3 server from the existing `lit_reviewer` conda environment:
+
+```bash
+npm run embed:bge-m3:cpu
+npm run embed:bge-m3:gpu
+```
+
+Both commands use the same model, normalization, and max length; only the device changes. If you switch from CPU to GPU with the same settings, the stored vectors remain compatible. Rebuild the index when you change model, max length, normalization, or for final reproducible outputs.
+
+After changing the embedding model, rebuild the index. Check indexed content from `Knowledge search`, or inspect the local SQLite tables `knowledge_documents` and `knowledge_chunks`.
 
 ## Models
 

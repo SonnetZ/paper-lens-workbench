@@ -11,7 +11,7 @@ export async function POST(request: Request) {
     knowledgeBaseId?: string;
   };
   try {
-    const results = searchKnowledgeBase(getEffectiveAppConfig(resolveAppConfig()), body.query ?? "", {
+    const results = await searchKnowledgeBase(getEffectiveAppConfig(resolveAppConfig()), body.query ?? "", {
       topK: body.topK,
       recordId: body.recordId,
       knowledgeBaseId: body.knowledgeBaseId

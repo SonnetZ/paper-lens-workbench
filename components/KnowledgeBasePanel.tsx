@@ -3,10 +3,12 @@
 import { Database, MagnifyingGlass, Plus } from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
 import type {
+  CorpusSynthesisAnswer,
   KnowledgeBaseStatus,
   KnowledgeBaseSummary,
   KnowledgeSearchResult,
-  PaperListItem
+  PaperListItem,
+  RuntimeModelSettings
 } from "@/lib/types";
 import { InfoHint } from "@/components/InfoHint";
 
@@ -43,22 +45,26 @@ function isKnowledgeBaseStatus(value: unknown): value is KnowledgeBaseStatus {
 export function KnowledgeBasePanel({
   paper,
   selectedKnowledgeBaseId,
-  onKnowledgeBaseChange
+  onKnowledgeBaseChange,
+  modelSettings
 }: {
   paper: PaperListItem | null;
   selectedKnowledgeBaseId?: string;
   onKnowledgeBaseChange?: (knowledgeBaseId: string) => void;
+  modelSettings?: RuntimeModelSettings;
 }) {
   const [localKnowledgeBaseId, setLocalKnowledgeBaseId] = useState("default");
   const activeKnowledgeBaseId = selectedKnowledgeBaseId ?? localKnowledgeBaseId;
   const [bases, setBases] = useState<KnowledgeBaseSummary[]>([]);
   const [status, setStatus] = useState<KnowledgeBaseStatus>(emptyStatus);
   const [query, setQuery] = useState("");
+  const [synthesisQuestion, setSynthesisQuestion] = useState("");
   const [newBaseName, setNewBaseName] = useState("");
   const [documentIndexed, setDocumentIndexed] = useState(false);
   const [results, setResults] = useState<KnowledgeSearchResult[]>([]);
+  const [synthesis, setSynthesis] = useState<CorpusSynthesisAnswer | null>(null);
   const [state, setState] = useState<
-    "idle" | "loading" | "creating" | "indexing" | "searching" | "error"
+    "idle" | "loading" | "creating" | "indexing" | "searching" | "synthesizing" | "error"
   >("idle");
   const [message, setMessage] = useState("");
 
@@ -117,6 +123,7 @@ export function KnowledgeBasePanel({
     setLocalKnowledgeBaseId(knowledgeBaseId);
     onKnowledgeBaseChange?.(knowledgeBaseId);
     setResults([]);
+    setSynthesis(null);
   };
 
   const createBase = async () => {
@@ -269,6 +276,36 @@ export function KnowledgeBasePanel({
     }
   };
 
+  const synthesizeCorpus = async () => {
+    if (!synthesisQuestion.trim()) return;
+    setState("synthesizing");
+    setMessage("");
+    setSynthesis(null);
+    try {
+      const response = await fetch("/api/knowledge-base/synthesis", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question: synthesisQuestion.trim(),
+          knowledgeBaseId: activeKnowledgeBaseId,
+          modelSettings
+        })
+      });
+      const data = (await response.json()) as {
+        answer?: CorpusSynthesisAnswer;
+        error?: string;
+      };
+      if (!response.ok || !data.answer) {
+        throw new Error(data.error ?? "Unable to synthesize corpus");
+      }
+      setSynthesis(data.answer);
+      setState("idle");
+    } catch (error) {
+      setState("error");
+      setMessage(error instanceof Error ? error.message : "Unable to synthesize corpus");
+    }
+  };
+
   return (
     <section className="grid gap-3">
       <div className="grid gap-1.5">
@@ -396,10 +433,53 @@ export function KnowledgeBasePanel({
           {state === "searching" ? "Searching" : "Search"}
         </button>
       </div>
+      <div className="grid gap-1.5 border-t border-swiss-rule pt-3">
+        <div className="flex items-center gap-1">
+          <label htmlFor="corpus-synthesis-question" className="text-xs font-semibold">
+            Corpus synthesis
+          </label>
+          <InfoHint label="Ask across indexed extraction artifacts and evidence packets in the selected knowledge base. This does not read raw full-paper chunks." />
+        </div>
+        <textarea
+          id="corpus-synthesis-question"
+          aria-label="Corpus question"
+          value={synthesisQuestion}
+          onChange={(event) => setSynthesisQuestion(event.target.value)}
+          className="min-h-20 resize-y border border-swiss-rule px-2 py-1.5 text-sm leading-5"
+        />
+        <button
+          type="button"
+          aria-label="Synthesize corpus"
+          onClick={synthesizeCorpus}
+          disabled={!synthesisQuestion.trim() || state === "synthesizing"}
+          className="workbench-button"
+        >
+          <MagnifyingGlass aria-hidden="true" size={14} weight="bold" />
+          {state === "synthesizing" ? "Synthesizing" : "Synthesize corpus"}
+        </button>
+      </div>
       {message ? (
         <p className={state === "error" ? "text-xs text-swiss-red" : "text-xs text-swiss-muted"}>
           {message}
         </p>
+      ) : null}
+      {synthesis ? (
+        <div className="grid gap-2 border-t border-swiss-rule pt-3">
+          <p className="text-sm leading-5 text-swiss-ink">{synthesis.answer}</p>
+          <div className="grid gap-1">
+            <p className="font-mono text-xs uppercase text-swiss-muted">Review-layer evidence used</p>
+            {synthesis.evidenceUsed.map((locator) => (
+              <p key={locator} className="font-mono text-xs text-swiss-red">
+                {locator}
+              </p>
+            ))}
+          </div>
+          {synthesis.warnings.length > 0 ? (
+            <p className="border-t border-swiss-rule pt-2 text-xs text-swiss-muted">
+              {synthesis.warnings.join(" ")}
+            </p>
+          ) : null}
+        </div>
       ) : null}
       {results.length > 0 ? (
         <div className="grid gap-2 border-t border-swiss-rule pt-3">

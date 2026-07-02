@@ -1,7 +1,12 @@
 export type ModelSource = "local" | "online";
 export type InternalLlmMode = "mock" | ModelSource;
 export type TranslationProvider = "opus" | ModelSource;
-export type PayloadScope = "Selection" | "Paper sections" | "Full paper" | "Corpus retrieval";
+export type PayloadScope =
+  | "Selection"
+  | "Paper sections"
+  | "Full paper"
+  | "Corpus retrieval"
+  | "Current full text";
 
 export interface AppConfig {
   llmMode: InternalLlmMode;
@@ -17,6 +22,9 @@ export interface AppConfig {
   onlineConfigSource: "manual" | "env" | "cc_switch";
   translationOpusBaseUrl?: string;
   llmMaxInputChars: number;
+  retrievalEmbeddingBaseUrl?: string;
+  retrievalEmbeddingModel?: string;
+  retrievalEmbeddingApiKey?: string;
 }
 
 export interface CorpusPathConfig {
@@ -169,11 +177,43 @@ export interface ScopedAskInput {
   evidence: EvidencePacket[];
   knowledgeBaseId?: string;
   modelSettings?: RuntimeModelSettings;
+  chatHistory?: AskChatTurn[];
 }
 
 export interface ScopedAskAnswer {
   recordId: string;
   payloadScope: PayloadScope;
+  answer: string;
+  evidenceUsed: string[];
+  warnings: string[];
+}
+
+export type AskChatRole = "user" | "assistant";
+
+export interface AskChatTurn {
+  role: AskChatRole;
+  content: string;
+}
+
+export interface AskChatMessage extends AskChatTurn {
+  id: string;
+  reviewProjectId: string;
+  recordId: string;
+  payloadScope: PayloadScope;
+  evidenceUsed: string[];
+  warnings: string[];
+  createdAt: string;
+}
+
+export interface CorpusSynthesisInput {
+  question: string;
+  knowledgeBaseId?: string;
+  modelSettings?: RuntimeModelSettings;
+}
+
+export interface CorpusSynthesisAnswer {
+  question: string;
+  knowledgeBaseId: string;
   answer: string;
   evidenceUsed: string[];
   warnings: string[];
@@ -210,4 +250,16 @@ export interface KnowledgeSearchResult {
   headingPath: string;
   text: string;
   score: number;
+}
+
+export interface ReviewLayerKnowledgeChunk {
+  chunkId: string;
+  documentId: string;
+  knowledgeBaseId: string;
+  recordId: string;
+  sourceKind: "artifact" | "evidence";
+  sourceId: string;
+  headingPath: string;
+  text: string;
+  chunkIndex: number;
 }

@@ -29,6 +29,65 @@ textarea {
   font: inherit;
 }
 
+.app-shell-grid {
+  --paper-column-width: 300px;
+  --workspace-column-width: 360px;
+}
+
+.workspace-column-resizer {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .app-shell-grid {
+    grid-template-columns:
+      var(--paper-column-width)
+      minmax(0, 1fr)
+      var(--workspace-column-width);
+    position: relative;
+  }
+
+  .workspace-column-resizer {
+    z-index: 20;
+    position: absolute;
+    top: 0;
+    display: block;
+    width: 11px;
+    height: 100dvh;
+    cursor: col-resize;
+    touch-action: none;
+  }
+
+  .workspace-column-resizer::before {
+    display: none;
+    width: 1px;
+    height: 100%;
+    margin: 0 auto;
+    background: transparent;
+    content: "";
+  }
+
+  .workspace-column-resizer:hover::before,
+  .workspace-column-resizer:active::before {
+    display: block;
+    background: rgba(24, 24, 27, 0.18);
+  }
+
+  .workspace-column-resizer-left {
+    left: var(--paper-column-width);
+    transform: translateX(-5px);
+  }
+
+  .workspace-column-resizer-right {
+    right: var(--workspace-column-width);
+    transform: translateX(5px);
+  }
+
+  .workspace-column-resizer-overlay {
+    background: transparent;
+  }
+}
+
 .workbench-button,
 .workbench-tab-button,
 .workbench-icon-button,
@@ -378,6 +437,10 @@ textarea {
     #f4f5f7;
 }
 
+.review-workspace-panel * {
+  min-width: 0;
+}
+
 .review-workspace-header {
   display: flex;
   align-items: flex-start;
@@ -641,6 +704,7 @@ textarea {
   color: #71717a;
   font-size: 13px;
   line-height: 1.55;
+  overflow-wrap: anywhere;
   animation: workspace-reveal 170ms ease-out;
 }
 
@@ -767,6 +831,79 @@ textarea {
   font-family: "Geist Mono", "SFMono-Regular", Consolas, monospace;
   font-size: 12px;
   line-height: 1.4;
+}
+
+.ask-chat {
+  display: grid;
+  gap: 8px;
+  border-top: 1px solid #e4e4e7;
+  padding-top: 10px;
+}
+
+.ask-chat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ask-message {
+  border: 1px solid #e4e4e7;
+  background: #ffffff;
+  padding: 9px 10px;
+}
+
+.ask-message-user {
+  background: #f7f7f8;
+}
+
+.ask-message-assistant {
+  border-left: 2px solid #e4002b;
+}
+
+.ask-message-role {
+  margin: 0 0 6px;
+  color: #71717a;
+  font-family: "Geist Mono", "SFMono-Regular", Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.ask-markdown {
+  color: #18181b;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.ask-markdown > * {
+  margin: 0;
+}
+
+.ask-markdown > * + * {
+  margin-top: 8px;
+}
+
+.ask-markdown ul,
+.ask-markdown ol {
+  padding-left: 18px;
+}
+
+.ask-markdown strong {
+  font-weight: 700;
+}
+
+.ask-markdown a {
+  color: #e4002b;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.ask-markdown code {
+  border: 1px solid #e4e4e7;
+  background: #f7f7f8;
+  padding: 1px 4px;
+  font-family: "Geist Mono", "SFMono-Regular", Consolas, monospace;
+  font-size: 0.9em;
 }
 
 .workspace-status-strip {

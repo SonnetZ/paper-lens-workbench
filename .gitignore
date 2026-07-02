@@ -1,4 +1,6 @@
 .next/
+.next-dev/
+logs/
 node_modules/
 coverage/
 dist/

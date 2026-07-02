@@ -45,6 +45,21 @@ CREATE TABLE IF NOT EXISTS brief_artifacts (
   PRIMARY KEY (review_project_id, record_id)
 );
 
+CREATE TABLE IF NOT EXISTS ask_chat_messages (
+  id TEXT PRIMARY KEY,
+  review_project_id TEXT NOT NULL DEFAULT 'default',
+  record_id TEXT NOT NULL,
+  payload_scope TEXT NOT NULL,
+  role TEXT NOT NULL,
+  content TEXT NOT NULL,
+  evidence_used_json TEXT NOT NULL DEFAULT '[]',
+  warnings_json TEXT NOT NULL DEFAULT '[]',
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_ask_chat_messages_scope
+ON ask_chat_messages(review_project_id, record_id, payload_scope, created_at);
+
 CREATE TABLE IF NOT EXISTS knowledge_bases (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,

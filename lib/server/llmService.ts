@@ -1,13 +1,22 @@
 import type {
   AppConfig,
+  CorpusSynthesisAnswer,
+  CorpusSynthesisInput,
   PayloadScope,
+  ReviewLayerKnowledgeChunk,
   RuntimeModelSettings,
   ScopedAskAnswer,
   ScopedAskInput
 } from "@/lib/types";
-import { searchKnowledgeBase } from "@/lib/server/knowledgeBase";
+import {
+  defaultKnowledgeBaseId,
+  listReviewLayerKnowledge,
+  searchKnowledgeBase
+} from "@/lib/server/knowledgeBase";
 import { resolveOnlineApiKey } from "@/lib/server/onlineCredentials";
 import { getPaperByRecordId, readMarkdownForPaper, readPdfTextForPaper } from "@/lib/server/sourceRegistry";
+
+type RetrievedChunk = Awaited<ReturnType<typeof searchKnowledgeBase>>[number];
 
 export function createMockBrief(recordId: string) {
   return {
@@ -96,7 +105,11 @@ export function assertAllowedAskRequest(config: AppConfig, input: ScopedAskInput
   if (input.payloadScope === "Full paper") {
     throw new Error("Full-paper model calls are not enabled for scoped Ask");
   }
-  if (input.payloadScope !== "Corpus retrieval" && input.evidence.length === 0) {
+  if (
+    input.payloadScope !== "Corpus retrieval" &&
+    input.payloadScope !== "Current full text" &&
+    input.evidence.length === 0
+  ) {
     throw new Error("At least one evidence packet is required for scoped Ask");
   }
   if (config.llmMode !== "mock" && !input.payloadScope) {
@@ -113,7 +126,7 @@ export async function answerScopedAsk(
   assertAllowedAskRequest(runtime.config, input);
   const retrievedChunks =
     input.payloadScope === "Corpus retrieval"
-      ? searchKnowledgeBase(config, input.question, {
+      ? await searchKnowledgeBase(config, input.question, {
           topK: 6,
           knowledgeBaseId: input.knowledgeBaseId
         })
@@ -121,7 +134,13 @@ export async function answerScopedAsk(
   if (input.payloadScope === "Corpus retrieval" && retrievedChunks.length === 0) {
     throw new Error("No corpus retrieval results are available for this question");
   }
-  const evidenceUsed = [
+  const currentFullText =
+    input.payloadScope === "Current full text"
+      ? await readCurrentPaperText(config, input.recordId, runtime.config.llmMaxInputChars)
+      : null;
+  const evidenceUsed = currentFullText
+    ? [`${input.recordId} / Current full text`]
+    : [
     ...input.evidence.map((item) => item.evidenceLocator),
     ...retrievedChunks.map((item) =>
       [item.recordId, item.headingPath || item.sourceId].filter(Boolean).join(" / ")
@@ -147,14 +166,76 @@ export async function answerScopedAsk(
     input,
     fetchImpl,
     runtime.manualOnlineApiKey,
-    retrievedChunks
+    retrievedChunks,
+    currentFullText?.content
   );
   return {
     recordId: input.recordId,
     payloadScope: input.payloadScope,
     answer: providerAnswer,
     evidenceUsed,
-    warnings: ["Provider response used scoped evidence only."]
+    warnings: [
+      currentFullText
+        ? "Provider response used current paper full text."
+        : "Provider response used scoped evidence only.",
+      ...(currentFullText?.truncated
+        ? ["Current paper text was truncated to fit the configured model input limit."]
+        : [])
+    ]
+  };
+}
+
+export async function answerCorpusSynthesis(
+  config: AppConfig,
+  input: CorpusSynthesisInput,
+  fetchImpl: typeof fetch = fetch
+): Promise<CorpusSynthesisAnswer> {
+  const question = input.question.trim();
+  if (!question) throw new Error("Question is required");
+  const runtime = resolveRuntimeModelConfig(config, input.modelSettings);
+  const knowledgeBaseId = input.knowledgeBaseId?.trim() || defaultKnowledgeBaseId;
+  const chunks = listReviewLayerKnowledge(config, knowledgeBaseId);
+  if (chunks.length === 0) {
+    throw new Error(
+      "No review-layer artifacts or evidence are indexed. Use Add artifacts or Add included outputs first."
+    );
+  }
+
+  if (runtime.config.llmMode === "mock") {
+    return {
+      question,
+      knowledgeBaseId,
+      answer: [
+        "Mock corpus synthesis.",
+        "This uses indexed extraction artifacts and evidence packets, not raw full papers.",
+        `Question: ${question}`
+      ].join(" "),
+      evidenceUsed: chunks.map((chunk) => chunkLocator(chunk)),
+      warnings: ["Mock response. No review-layer knowledge was sent to a model."]
+    };
+  }
+
+  const { context, includedChunks, truncated } = serializeReviewLayerContext(
+    chunks,
+    runtime.config.llmMaxInputChars
+  );
+  const providerAnswer = await callOpenAiCompatibleCorpusSynthesis(
+    runtime.config,
+    question,
+    knowledgeBaseId,
+    context,
+    fetchImpl,
+    runtime.manualOnlineApiKey
+  );
+  return {
+    question,
+    knowledgeBaseId,
+    answer: providerAnswer,
+    evidenceUsed: includedChunks.map((chunk) => chunkLocator(chunk)),
+    warnings: [
+      "Provider response used review-layer knowledge only.",
+      ...(truncated ? ["Review-layer context was truncated to fit the configured model input limit."] : [])
+    ]
   };
 }
 
@@ -163,7 +244,8 @@ async function callOpenAiCompatibleScopedAsk(
   input: ScopedAskInput,
   fetchImpl: typeof fetch,
   manualOnlineApiKey?: string,
-  retrievedChunks: ReturnType<typeof searchKnowledgeBase> = []
+  retrievedChunks: RetrievedChunk[] = [],
+  currentFullText = ""
 ): Promise<string> {
   const baseUrl = providerBaseUrl(config);
   const model = providerModel(config);
@@ -184,7 +266,7 @@ async function callOpenAiCompatibleScopedAsk(
         },
         {
           role: "user",
-          content: serializeScopedAskInput(input, retrievedChunks)
+          content: serializeScopedAskInput(input, retrievedChunks, currentFullText)
         }
       ]
     })
@@ -198,6 +280,55 @@ async function callOpenAiCompatibleScopedAsk(
   };
   const content = json.choices?.[0]?.message?.content?.trim();
   if (!content) throw new Error("Scoped Ask provider returned an empty answer");
+  return content;
+}
+
+async function callOpenAiCompatibleCorpusSynthesis(
+  config: AppConfig,
+  question: string,
+  knowledgeBaseId: string,
+  reviewLayerContext: string,
+  fetchImpl: typeof fetch,
+  manualOnlineApiKey?: string
+): Promise<string> {
+  const baseUrl = providerBaseUrl(config);
+  const model = providerModel(config);
+  if (!baseUrl) throw new Error("Model provider base URL is not configured");
+  if (!model) throw new Error("Model name is not configured");
+
+  const response = await fetchImpl(`${baseUrl.replace(/\/+$/, "")}/chat/completions`, {
+    method: "POST",
+    headers: providerHeaders(config, manualOnlineApiKey),
+    body: JSON.stringify({
+      model,
+      temperature: 0.2,
+      messages: [
+        {
+          role: "system",
+          content:
+            "You synthesize evidence for a scoping review. Use only the supplied review-layer context: extraction artifacts and evidence packets. Preserve record IDs and locators. If the context is insufficient, say so."
+        },
+        {
+          role: "user",
+          content: [
+            `knowledge_base_id: ${knowledgeBaseId}`,
+            `question: ${question}`,
+            "review_layer_context:",
+            reviewLayerContext
+          ].join("\n")
+        }
+      ]
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error(`Corpus synthesis provider request failed: HTTP ${response.status}`);
+  }
+  const json = (await response.json()) as {
+    choices?: Array<{ message?: { content?: string } }>;
+  };
+  const content = json.choices?.[0]?.message?.content?.trim();
+  if (!content) throw new Error("Corpus synthesis provider returned an empty answer");
   return content;
 }
 
@@ -260,7 +391,8 @@ export function providerHeaders(config: AppConfig, manualOnlineApiKey?: string):
 
 function serializeScopedAskInput(
   input: ScopedAskInput,
-  retrievedChunks: ReturnType<typeof searchKnowledgeBase> = []
+  retrievedChunks: RetrievedChunk[] = [],
+  currentFullText = ""
 ): string {
   const evidenceLines = input.evidence
     .map((item, index) => {
@@ -291,11 +423,91 @@ function serializeScopedAskInput(
     `knowledge_base_id: ${input.knowledgeBaseId || "default"}`,
     `payload_scope: ${input.payloadScope}`,
     `question: ${input.question.trim()}`,
+    "chat_history:",
+    serializeChatHistory(input.chatHistory ?? []),
     "evidence_packets:",
     evidenceLines || "(none)",
     "retrieved_corpus_chunks:",
-    corpusLines || "(none)"
+    corpusLines || "(none)",
+    "current_full_text:",
+    currentFullText || "(none)"
   ].join("\n");
+}
+
+function serializeChatHistory(history: ScopedAskInput["chatHistory"]): string {
+  const turns = (history ?? []).slice(-8);
+  if (turns.length === 0) return "(none)";
+  return turns
+    .map((turn) => `${turn.role}: ${turn.content.trim().slice(0, 4000)}`)
+    .join("\n");
+}
+
+async function readCurrentPaperText(
+  config: AppConfig,
+  recordId: string,
+  maxChars: number
+): Promise<{ content: string; truncated: boolean }> {
+  const paper = await getPaperByRecordId(config, recordId);
+  if (!paper) throw new Error(`Paper not found: ${recordId}`);
+  const source = paper.hasPdf
+    ? await readPdfTextForPaper(config, recordId)
+    : await readMarkdownForPaper(config, recordId);
+  if (!source?.content.trim()) throw new Error("Paper text is not available for current full-text Ask");
+  const limit = Math.max(1000, maxChars);
+  return {
+    content: source.content.slice(0, limit),
+    truncated: source.content.length > limit
+  };
+}
+
+function serializeReviewLayerContext(
+  chunks: ReviewLayerKnowledgeChunk[],
+  maxChars: number
+): { context: string; includedChunks: ReviewLayerKnowledgeChunk[]; truncated: boolean } {
+  const limit = Math.max(1000, maxChars);
+  const lines: string[] = [];
+  const includedChunks: ReviewLayerKnowledgeChunk[] = [];
+  let currentRecordId = "";
+  let truncated = false;
+
+  for (const chunk of chunks) {
+    const nextLines = [...lines];
+    if (chunk.recordId !== currentRecordId) {
+      nextLines.push(`\nrecord_id: ${chunk.recordId}`);
+    }
+    nextLines.push(
+      [
+        `source: ${chunk.sourceKind}`,
+        `source_id: ${chunk.sourceId}`,
+        `locator: ${chunk.headingPath || chunk.sourceId}`,
+        `text: ${chunk.text}`
+      ].join("\n")
+    );
+    if (nextLines.join("\n\n").length > limit) {
+      truncated = true;
+      break;
+    }
+    if (chunk.recordId !== currentRecordId) currentRecordId = chunk.recordId;
+    lines.splice(0, lines.length, ...nextLines);
+    includedChunks.push(chunk);
+  }
+
+  const context = lines.join("\n\n");
+  return {
+    context: context.length > limit ? context.slice(0, limit) : context,
+    includedChunks,
+    truncated
+  };
+}
+
+function chunkLocator(chunk: ReviewLayerKnowledgeChunk): string {
+  return [
+    chunk.recordId,
+    chunk.sourceKind,
+    chunk.headingPath || chunk.sourceId
+  ]
+    .filter(Boolean)
+    .join(" / ");
 }
 
 function parseBriefJson(recordId: string, value: string) {

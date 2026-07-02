@@ -4,7 +4,8 @@ import type {
   AppConfig,
   KnowledgeBaseStatus,
   KnowledgeBaseSummary,
-  KnowledgeSearchResult
+  KnowledgeSearchResult,
+  ReviewLayerKnowledgeChunk
 } from "@/lib/types";
 import { listEvidencePackets } from "@/lib/server/evidence";
 import { readExtractionArtifact } from "@/lib/server/extraction";
@@ -28,6 +29,7 @@ export interface KnowledgeSearchOptions {
   topK?: number;
   recordId?: string;
   knowledgeBaseId?: string;
+  fetchImpl?: typeof fetch;
 }
 
 interface KnowledgeDocumentInput {
@@ -56,7 +58,7 @@ interface KnowledgeChunkRow {
   embedding_json: string;
 }
 
-const embeddingModel = "portable-hash-v1";
+const fallbackEmbeddingModel = "portable-hash-v1";
 const embeddingDimensions = 256;
 const maxChunkWords = 180;
 const minChunkWords = 24;
@@ -122,7 +124,8 @@ export function listKnowledgeBases(config: AppConfig): KnowledgeBaseSummary[] {
 export async function ingestPaperMarkdown(
   config: AppConfig,
   recordId: string,
-  knowledgeBaseId = defaultKnowledgeBaseId
+  knowledgeBaseId = defaultKnowledgeBaseId,
+  fetchImpl: typeof fetch = fetch
 ): Promise<KnowledgeIngestResult> {
   const paper = await getPaperByRecordId(config, recordId);
   const markdown = await readMarkdownForPaper(config, recordId);
@@ -136,7 +139,7 @@ export async function ingestPaperMarkdown(
     sourcePath: markdown.path,
     title: paper.title || paper.sourceFilename || paper.recordId,
     content: markdown.content
-  });
+  }, fetchImpl);
 }
 
 export async function ingestPaperSource(
@@ -146,7 +149,8 @@ export async function ingestPaperSource(
   extractPdfText: (
     config: AppConfig,
     recordId: string
-  ) => Promise<{ content: string; path: string } | string | null> = readPdfTextForPaper
+  ) => Promise<{ content: string; path: string } | string | null> = readPdfTextForPaper,
+  fetchImpl: typeof fetch = fetch
 ): Promise<KnowledgeIngestResult> {
   const paper = await getPaperByRecordId(config, recordId);
   if (!paper) throw new Error(`Paper not found: ${recordId}`);
@@ -163,9 +167,9 @@ export async function ingestPaperSource(
       sourcePath: pdf.path,
       title: paper.title || paper.sourceFilename || paper.recordId,
       content: pdf.content
-    });
+    }, fetchImpl);
   }
-  return ingestPaperMarkdown(config, recordId, knowledgeBaseId);
+  return ingestPaperMarkdown(config, recordId, knowledgeBaseId, fetchImpl);
 }
 
 export async function ingestCorpusMarkdown(
@@ -183,14 +187,15 @@ export async function ingestCorpusMarkdown(
     documentCount += result.documentCount;
     chunkCount += result.chunkCount;
   }
-  return { documentCount, chunkCount, embeddingModel };
+  return { documentCount, chunkCount, embeddingModel: getEmbeddingModel(config) };
 }
 
-export function ingestReviewArtifacts(
+export async function ingestReviewArtifacts(
   config: AppConfig,
   recordId: string,
-  knowledgeBaseId = defaultKnowledgeBaseId
-): KnowledgeIngestResult {
+  knowledgeBaseId = defaultKnowledgeBaseId,
+  fetchImpl: typeof fetch = fetch
+): Promise<KnowledgeIngestResult> {
   ensureKnowledgeBase(config, knowledgeBaseId);
   const results: KnowledgeIngestResult[] = [];
   const extraction = readExtractionArtifact(config, recordId);
@@ -207,7 +212,7 @@ export function ingestReviewArtifacts(
 
   if (artifactContent.trim()) {
     results.push(
-      upsertKnowledgeDocument(config, {
+      await upsertKnowledgeDocument(config, {
         knowledgeBaseId,
         recordId,
         sourceKind: "artifact",
@@ -215,7 +220,7 @@ export function ingestReviewArtifacts(
         sourcePath: null,
         title: `${recordId} extraction artifact`,
         content: artifactContent
-      })
+      }, fetchImpl)
     );
   }
 
@@ -231,7 +236,7 @@ export function ingestReviewArtifacts(
 
   if (evidenceContent.trim()) {
     results.push(
-      upsertKnowledgeDocument(config, {
+      await upsertKnowledgeDocument(config, {
         knowledgeBaseId,
         recordId,
         sourceKind: "evidence",
@@ -239,11 +244,11 @@ export function ingestReviewArtifacts(
         sourcePath: null,
         title: `${recordId} evidence packets`,
         content: evidenceContent
-      })
+      }, fetchImpl)
     );
   }
 
-  return summarizeResults(results);
+  return summarizeResults(config, results);
 }
 
 export async function ingestIncludedReviewArtifacts(
@@ -252,11 +257,11 @@ export async function ingestIncludedReviewArtifacts(
 ): Promise<KnowledgeIngestResult> {
   ensureKnowledgeBase(config, knowledgeBaseId);
   const papers = await loadPaperQueue(config);
-  return summarizeResults(
-    papers
-      .filter((paper) => paper.decision === "include")
-      .map((paper) => ingestReviewArtifacts(config, paper.recordId, knowledgeBaseId))
-  );
+  const results: KnowledgeIngestResult[] = [];
+  for (const paper of papers.filter((item) => item.decision === "include")) {
+    results.push(await ingestReviewArtifacts(config, paper.recordId, knowledgeBaseId));
+  }
+  return summarizeResults(config, results);
 }
 
 export function getKnowledgeBaseStatus(
@@ -305,7 +310,7 @@ export function getKnowledgeBaseStatus(
     markdownDocumentCount: documentRow.markdown_document_count ?? 0,
     artifactDocumentCount: documentRow.artifact_document_count ?? 0,
     evidenceDocumentCount: documentRow.evidence_document_count ?? 0,
-    embeddingModel,
+    embeddingModel: getEmbeddingModel(config),
     updatedAt: documentRow.updated_at
   };
 }
@@ -328,14 +333,14 @@ export function isPaperSourceIndexed(
   return Boolean(row);
 }
 
-export function searchKnowledgeBase(
+export async function searchKnowledgeBase(
   config: AppConfig,
   query: string,
   options: KnowledgeSearchOptions = {}
-): KnowledgeSearchResult[] {
+): Promise<KnowledgeSearchResult[]> {
   const trimmed = query.trim();
   if (!trimmed) return [];
-  const queryEmbedding = embedText(trimmed);
+  const queryEmbedding = (await embedTexts(config, [trimmed], options.fetchImpl))[0];
   const db = openReaderDb(config.readerDbPath);
   const knowledgeBaseId = normalizeKnowledgeBaseId(options.knowledgeBaseId);
   const rows = (options.recordId
@@ -363,13 +368,67 @@ export function searchKnowledgeBase(
     .slice(0, options.topK ?? 6);
 }
 
-function upsertKnowledgeDocument(
+export function listReviewLayerKnowledge(
   config: AppConfig,
-  input: KnowledgeDocumentInput
-): KnowledgeIngestResult {
+  knowledgeBaseId = defaultKnowledgeBaseId
+): ReviewLayerKnowledgeChunk[] {
+  const db = openReaderDb(config.readerDbPath);
+  const rows = db
+    .prepare(
+      `SELECT
+        id,
+        knowledge_base_id,
+        document_id,
+        record_id,
+        source_kind,
+        source_id,
+        chunk_index,
+        heading_path,
+        text
+       FROM knowledge_chunks
+       WHERE knowledge_base_id = ?
+         AND source_kind IN ('artifact', 'evidence')
+       ORDER BY record_id, source_kind, source_id, chunk_index`
+    )
+    .all(normalizeKnowledgeBaseId(knowledgeBaseId)) as Array<{
+    id: string;
+    knowledge_base_id: string;
+    document_id: string;
+    record_id: string;
+    source_kind: "artifact" | "evidence";
+    source_id: string;
+    chunk_index: number;
+    heading_path: string;
+    text: string;
+  }>;
+  db.close();
+  return rows.map((row) => ({
+    chunkId: row.id,
+    documentId: row.document_id,
+    knowledgeBaseId: row.knowledge_base_id,
+    recordId: row.record_id,
+    sourceKind: row.source_kind,
+    sourceId: row.source_id,
+    chunkIndex: row.chunk_index,
+    headingPath: row.heading_path,
+    text: row.text
+  }));
+}
+
+async function upsertKnowledgeDocument(
+  config: AppConfig,
+  input: KnowledgeDocumentInput,
+  fetchImpl: typeof fetch = fetch
+): Promise<KnowledgeIngestResult> {
   const content = input.content.trim();
+  const embeddingModel = getEmbeddingModel(config);
   if (!content) return { documentCount: 0, chunkCount: 0, embeddingModel };
   const chunks = chunkMarkdown(content);
+  const embeddings = await embedTexts(
+    config,
+    chunks.map((chunk) => `${chunk.headingPath}\n${chunk.text}`),
+    fetchImpl
+  );
   const now = new Date().toISOString();
   const documentId = stableId([
     input.knowledgeBaseId,
@@ -444,7 +503,7 @@ function upsertKnowledgeDocument(
       text: chunk.text,
       tokenCount: tokenize(chunk.text).length,
       embeddingModel,
-      embeddingJson: JSON.stringify(embedText(`${chunk.headingPath}\n${chunk.text}`)),
+      embeddingJson: JSON.stringify(embeddings[index]),
       createdAt: now
     });
   });
@@ -475,11 +534,11 @@ function normalizeKnowledgeBaseId(knowledgeBaseId?: string): string {
   return trimmed || defaultKnowledgeBaseId;
 }
 
-function summarizeResults(results: KnowledgeIngestResult[]): KnowledgeIngestResult {
+function summarizeResults(config: AppConfig, results: KnowledgeIngestResult[]): KnowledgeIngestResult {
   return {
     documentCount: results.reduce((sum, item) => sum + item.documentCount, 0),
     chunkCount: results.reduce((sum, item) => sum + item.chunkCount, 0),
-    embeddingModel
+    embeddingModel: getEmbeddingModel(config)
   };
 }
 
@@ -552,6 +611,47 @@ function embedText(text: string): number[] {
   }
   const magnitude = Math.sqrt(vector.reduce((sum, value) => sum + value * value, 0)) || 1;
   return vector.map((value) => Number((value / magnitude).toFixed(6)));
+}
+
+async function embedTexts(
+  config: AppConfig,
+  texts: string[],
+  fetchImpl: typeof fetch = fetch
+): Promise<number[][]> {
+  if (!config.retrievalEmbeddingBaseUrl) return texts.map(embedText);
+  if (!config.retrievalEmbeddingModel) throw new Error("Retrieval embedding model is not configured");
+  const response = await fetchImpl(`${config.retrievalEmbeddingBaseUrl}/embeddings`, {
+    method: "POST",
+    headers: embeddingHeaders(config),
+    body: JSON.stringify({
+      model: config.retrievalEmbeddingModel,
+      input: texts
+    })
+  });
+  if (!response.ok) throw new Error(`Embedding provider request failed: HTTP ${response.status}`);
+  const json = (await response.json()) as { data?: Array<{ embedding?: unknown }> };
+  const embeddings = json.data?.map((item) =>
+    Array.isArray(item.embedding) ? item.embedding.map(Number) : []
+  );
+  if (!embeddings || embeddings.length !== texts.length || embeddings.some((item) => item.length === 0)) {
+    throw new Error("Embedding provider returned invalid embeddings");
+  }
+  return embeddings;
+}
+
+function embeddingHeaders(config: AppConfig): HeadersInit {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    accept: "application/json"
+  };
+  if (config.retrievalEmbeddingApiKey) headers.Authorization = `Bearer ${config.retrievalEmbeddingApiKey}`;
+  return headers;
+}
+
+function getEmbeddingModel(config: AppConfig): string {
+  return config.retrievalEmbeddingBaseUrl
+    ? config.retrievalEmbeddingModel || fallbackEmbeddingModel
+    : fallbackEmbeddingModel;
 }
 
 function cosine(left: number[], right: number[]): number {

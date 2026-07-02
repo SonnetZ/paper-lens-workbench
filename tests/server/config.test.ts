@@ -40,6 +40,21 @@ describe("resolveAppConfig", () => {
     expect(config.llmMode).toBe("local");
   });
 
+  it("reads optional retrieval embedding settings", () => {
+    const config = resolveAppConfig(
+      {
+        RETRIEVAL_EMBEDDING_BASE_URL: "http://127.0.0.1:8090/v1/",
+        RETRIEVAL_EMBEDDING_MODEL: "BAAI/bge-m3",
+        RETRIEVAL_EMBEDDING_API_KEY: "embedding-secret"
+      },
+      "/tmp/reader"
+    );
+
+    expect(config.retrievalEmbeddingBaseUrl).toBe("http://127.0.0.1:8090/v1");
+    expect(config.retrievalEmbeddingModel).toBe("BAAI/bge-m3");
+    expect(config.retrievalEmbeddingApiKey).toBe("embedding-secret");
+  });
+
   it("rejects unsupported model modes", () => {
     expect(() => resolveAppConfig({ LLM_MODE: "agent" }, "/tmp/reader")).toThrow(
       "Unsupported LLM_MODE"

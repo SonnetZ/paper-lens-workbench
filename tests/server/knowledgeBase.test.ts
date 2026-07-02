@@ -1,7 +1,7 @@
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { AppConfig } from "@/lib/types";
 import { saveEvidencePacket } from "@/lib/server/evidence";
 import { saveExtractionArtifact } from "@/lib/server/extraction";
@@ -13,6 +13,7 @@ import {
   ingestPaperSource,
   ingestReviewArtifacts,
   isPaperSourceIndexed,
+  listReviewLayerKnowledge,
   listKnowledgeBases,
   searchKnowledgeBase
 } from "@/lib/server/knowledgeBase";
@@ -114,7 +115,7 @@ describe("knowledge base", () => {
     expect(status.pdfDocumentCount).toBe(1);
     expect(status.markdownDocumentCount).toBe(0);
     expect(isPaperSourceIndexed(config, "FT0001", "default")).toBe(true);
-    expect(searchKnowledgeBase(config, "qualitative interviewing")[0]).toMatchObject({
+    expect((await searchKnowledgeBase(config, "qualitative interviewing"))[0]).toMatchObject({
       sourceKind: "pdf"
     });
   });
@@ -123,7 +124,7 @@ describe("knowledge base", () => {
     const config = await makeConfig();
     await ingestPaperMarkdown(config, "FT0001");
 
-    const results = searchKnowledgeBase(config, "prompt template revision", { topK: 3 });
+    const results = await searchKnowledgeBase(config, "prompt template revision", { topK: 3 });
 
     expect(results[0]).toMatchObject({
       recordId: "FT0001",
@@ -154,13 +155,48 @@ describe("knowledge base", () => {
       evidenceLocator: "Reviewer memo"
     });
 
-    const result = ingestReviewArtifacts(config, "FT0001");
-    const search = searchKnowledgeBase(config, "prompt transparency", { topK: 5 });
+    const result = await ingestReviewArtifacts(config, "FT0001");
+    const search = await searchKnowledgeBase(config, "prompt transparency", { topK: 5 });
 
     expect(result.documentCount).toBe(2);
     expect(result.chunkCount).toBeGreaterThanOrEqual(2);
     expect(search.map((item) => item.sourceKind)).toContain("artifact");
     expect(search.map((item) => item.sourceKind)).toContain("evidence");
+  });
+
+  it("lists only review-layer chunks for corpus synthesis", async () => {
+    const config = await makeConfig();
+    await ingestPaperMarkdown(config, "FT0001");
+    saveEvidencePacket(config, {
+      recordId: "FT0001",
+      sourceFormat: "manual",
+      sourcePath: null,
+      evidenceLocator: "Reviewer memo",
+      quoteSnippet: "",
+      headingPath: null,
+      pageNumber: null,
+      reviewerNote: "Reviewer evidence about prompt transparency.",
+      pdfVerificationNote: ""
+    });
+    saveExtractionArtifact(config, "FT0001", {
+      methodTypology: "Human-in-the-loop LLM coding.",
+      promptingPractices: "Prompt templates are disclosed.",
+      evaluationPractices: "Human expert review is used.",
+      synthesisNote: "Useful for cross-paper prompting synthesis.",
+      evidenceLocator: "Reviewer memo"
+    });
+    await ingestReviewArtifacts(config, "FT0001");
+
+    const chunks = listReviewLayerKnowledge(config);
+
+    expect(chunks.length).toBeGreaterThanOrEqual(2);
+    expect(new Set(chunks.map((item) => item.sourceKind))).toEqual(
+      new Set(["artifact", "evidence"])
+    );
+    expect(chunks[0]).toMatchObject({
+      knowledgeBaseId: "default",
+      recordId: "FT0001"
+    });
   });
 
   it("keeps separate review knowledge bases from sharing retrieval results", async () => {
@@ -172,10 +208,10 @@ describe("knowledge base", () => {
 
     const defaultStatus = getKnowledgeBaseStatus(config);
     const scopedStatus = getKnowledgeBaseStatus(config, base.id);
-    const defaultResults = searchKnowledgeBase(config, "prompt template", {
+    const defaultResults = await searchKnowledgeBase(config, "prompt template", {
       knowledgeBaseId: "default"
     });
-    const scopedResults = searchKnowledgeBase(config, "prompt template", {
+    const scopedResults = await searchKnowledgeBase(config, "prompt template", {
       knowledgeBaseId: base.id
     });
 
@@ -184,5 +220,42 @@ describe("knowledge base", () => {
     expect(scopedStatus.documentCount).toBe(1);
     expect(defaultResults[0].documentId).not.toBe(scopedResults[0].documentId);
     expect(scopedResults[0].recordId).toBe("FT0001");
+  });
+
+  it("uses configured BGE-M3 compatible embeddings for indexing and search", async () => {
+    const config = {
+      ...(await makeConfig()),
+      retrievalEmbeddingBaseUrl: "http://embedding.test/v1",
+      retrievalEmbeddingModel: "BAAI/bge-m3",
+      retrievalEmbeddingApiKey: "secret"
+    };
+    const fetchImpl = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body)) as { input: string[] };
+      return new Response(
+        JSON.stringify({
+          data: body.input.map(() => ({ embedding: [1, 0, 0] }))
+        })
+      );
+    });
+
+    await ingestPaperMarkdown(config, "FT0001", "default", fetchImpl);
+    const status = getKnowledgeBaseStatus(config);
+    const results = await searchKnowledgeBase(config, "prompt template", {
+      topK: 1,
+      fetchImpl
+    });
+
+    expect(status.embeddingModel).toBe("BAAI/bge-m3");
+    expect(results[0].score).toBe(1);
+    expect(fetchImpl).toHaveBeenCalledWith(
+      "http://embedding.test/v1/embeddings",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          Authorization: "Bearer secret",
+          "Content-Type": "application/json"
+        })
+      })
+    );
   });
 });

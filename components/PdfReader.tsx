@@ -196,6 +196,13 @@ export function PdfReader({ recordId, pdfUrl, sourcePath, modelSettings, onEvide
     setTranslateMessage("");
   };
 
+  const zoomWithWheel = (event: React.WheelEvent<HTMLElement>) => {
+    if (!event.ctrlKey && !event.metaKey) return;
+    event.preventDefault();
+    const direction = event.deltaY < 0 ? 1 : -1;
+    setZoom((current) => clampNumber(Number((current + direction * 0.1).toFixed(2)), 0.5, 2));
+  };
+
   const askAboutSelection = async () => {
     if (!selectionDraft || !selectionQuestion.trim()) return;
     setAskStatus("asking");
@@ -310,6 +317,7 @@ export function PdfReader({ recordId, pdfUrl, sourcePath, modelSettings, onEvide
         aria-label="Rendered PDF page"
         onMouseUp={showSelectionAssistant}
         onKeyUp={showSelectionAssistant}
+        onWheel={zoomWithWheel}
         className="pdf-reader-surface overflow-auto"
       >
         <div ref={pageLayerRef} className="pdf-page">

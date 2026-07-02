@@ -9,7 +9,11 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "e2e": "playwright test",
-    "translate:opus": "python3 scripts/opus_mt_translate_server.py",
+    "dev:local:cpu": "bash scripts/dev-local.sh cpu",
+    "dev:local:gpu": "bash scripts/dev-local.sh gpu",
+    "translate:opus": "conda run -n lit_reviewer python scripts/opus_mt_translate_server.py",
+    "embed:bge-m3:cpu": "conda run -n lit_reviewer python scripts/bge_m3_embedding_server.py --device cpu",
+    "embed:bge-m3:gpu": "conda run -n lit_reviewer python scripts/bge_m3_embedding_server.py --device cuda",
     "portable:check": "node scripts/portable-check.mjs",
     "portable:pack": "node scripts/pack-portable.mjs",
     "portable:smoke": "node scripts/portable-smoke.mjs"

@@ -41,7 +41,7 @@ export async function POST(
       results.push(await ingestPaperSource(config, recordId, knowledgeBaseId));
     }
     if (body.includeArtifacts) {
-      results.push(ingestReviewArtifacts(config, recordId, knowledgeBaseId));
+      results.push(await ingestReviewArtifacts(config, recordId, knowledgeBaseId));
     }
     const ingested = {
       documentCount: results.reduce((sum, item) => sum + item.documentCount, 0),

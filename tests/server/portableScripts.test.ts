@@ -19,9 +19,22 @@ describe("portable scripts", () => {
     expect(packageJson.scripts["portable:check"]).toBe("node scripts/portable-check.mjs");
     expect(packageJson.scripts["portable:pack"]).toBe("node scripts/pack-portable.mjs");
     expect(packageJson.scripts["portable:smoke"]).toBe("node scripts/portable-smoke.mjs");
+    expect(packageJson.scripts["dev:local:cpu"]).toBe("bash scripts/dev-local.sh cpu");
+    expect(packageJson.scripts["dev:local:gpu"]).toBe("bash scripts/dev-local.sh gpu");
+    expect(packageJson.scripts["translate:opus"]).toContain(
+      "conda run -n lit_reviewer python scripts/opus_mt_translate_server.py"
+    );
+    expect(packageJson.scripts["embed:bge-m3:cpu"]).toContain(
+      "scripts/bge_m3_embedding_server.py --device cpu"
+    );
+    expect(packageJson.scripts["embed:bge-m3:gpu"]).toContain(
+      "scripts/bge_m3_embedding_server.py --device cuda"
+    );
     expect(fs.existsSync(path.join(appRoot, "scripts/portable-check.mjs"))).toBe(true);
     expect(fs.existsSync(path.join(appRoot, "scripts/pack-portable.mjs"))).toBe(true);
     expect(fs.existsSync(path.join(appRoot, "scripts/portable-smoke.mjs"))).toBe(true);
+    expect(fs.existsSync(path.join(appRoot, "scripts/dev-local.sh"))).toBe(true);
+    expect(fs.existsSync(path.join(appRoot, "scripts/bge_m3_embedding_server.py"))).toBe(true);
   });
 
   it("builds a machine-readable portable check report", () => {
@@ -76,7 +89,8 @@ describe("portable scripts", () => {
         "app/api/model-config/test/route.ts",
         "app/api/papers/[recordId]/brief/route.ts",
         "app/api/papers/[recordId]/export/route.ts",
-	        "app/api/translate/route.ts",
+        "app/api/translate/route.ts",
+        "tests/server/nextConfig.test.ts",
 	        "components/BriefPanel.tsx",
 	        "components/CorpusSetup.tsx",
 	        "components/InfoHint.tsx",
@@ -89,6 +103,7 @@ describe("portable scripts", () => {
         "lib/server/reviewExport.ts",
         "lib/server/translation.ts",
         "scripts/opus_mt_translate_server.py",
+        "scripts/bge_m3_embedding_server.py",
         "tests/server/translation.test.ts",
         "tests/client/ReviewMaterialExport.test.tsx",
         "tests/server/reviewExport.test.ts",
@@ -97,7 +112,16 @@ describe("portable scripts", () => {
       ])
     );
     expect(requiredPackageScripts).toEqual(
-      expect.arrayContaining(["translate:opus", "portable:check", "portable:pack", "portable:smoke"])
+      expect.arrayContaining([
+        "translate:opus",
+        "dev:local:cpu",
+        "dev:local:gpu",
+        "embed:bge-m3:cpu",
+        "embed:bge-m3:gpu",
+        "portable:check",
+        "portable:pack",
+        "portable:smoke"
+      ])
     );
   });
 
@@ -105,6 +129,7 @@ describe("portable scripts", () => {
     const requiredFiles = getPortableRequiredFiles();
 
     expect(requiredFiles).toContain("PORTABLE.md");
+    expect(requiredFiles).toContain("scripts/dev-local.sh");
     expect(requiredFiles).toContain("scripts/portable-smoke.mjs");
     expect(requiredFiles).toContain("scripts/portable-smoke-core.mjs");
     expect(requiredFiles).toContain("scripts/portable-smoke-core.d.mts");
