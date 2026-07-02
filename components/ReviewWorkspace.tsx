@@ -114,18 +114,6 @@ export function ReviewWorkspace({
           </ArtifactView>
 
           <ArtifactView
-            title="Ask"
-            info="Ask a question from attached evidence or from the local knowledge base. It will not send the full paper."
-            storageKey="review-workspace:ask"
-          >
-            <AskPanel
-              paper={paper}
-              evidence={evidence}
-              modelSettings={modelSettings}
-              knowledgeBaseId={knowledgeBaseId}
-            />
-          </ArtifactView>
-          <ArtifactView
             title="Brief"
             info="Generate a quick navigation brief: suggested decision, rationale, and sections to read first. Treat it as a draft."
             storageKey="review-workspace:brief"
@@ -147,6 +135,18 @@ export function ReviewWorkspace({
               selectedKnowledgeBaseId={knowledgeBaseId}
               onKnowledgeBaseChange={onKnowledgeBaseChange}
               modelSettings={modelSettings}
+            />
+          </ArtifactView>
+          <ArtifactView
+            title="Ask"
+            info="Ask a question from attached evidence or from the local knowledge base. It will not send the full paper."
+            storageKey="review-workspace:ask"
+          >
+            <AskPanel
+              paper={paper}
+              evidence={evidence}
+              modelSettings={modelSettings}
+              knowledgeBaseId={knowledgeBaseId}
             />
           </ArtifactView>
         </WorkspaceModePanel>

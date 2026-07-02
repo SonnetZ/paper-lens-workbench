@@ -121,6 +121,8 @@ describe("ReviewWorkspace", () => {
     expect(screen.getByRole("heading", { name: "Ask" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Brief" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Knowledge base" })).toBeInTheDocument();
+    const assistHeadings = screen.getAllByRole("heading", { level: 3 }).map((heading) => heading.textContent);
+    expect(assistHeadings.indexOf("Knowledge base")).toBeLessThan(assistHeadings.indexOf("Ask"));
     expect(screen.queryByRole("heading", { name: "Screening" })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Extraction" })).not.toBeInTheDocument();
     expect(screen.getByText("Model: mock")).toHaveClass("workspace-status-line");

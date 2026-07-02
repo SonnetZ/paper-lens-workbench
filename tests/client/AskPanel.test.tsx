@@ -125,6 +125,7 @@ describe("AskPanel", () => {
       screen.getByRole("button", { name: "Answer only from evidence packets attached in the tray." })
     ).toBeInTheDocument();
     expect(screen.getByText("Model: local / qwen-local")).toBeInTheDocument();
+    expect(screen.queryByText(/evidence packet/)).not.toBeInTheDocument();
 
     await userEvent.type(
       screen.getByLabelText("Question"),
@@ -146,6 +147,51 @@ describe("AskPanel", () => {
     });
     expect((await screen.findByText("methods")).tagName).toBe("STRONG");
     expect(screen.getAllByText("Reviewer memo").length).toBeGreaterThan(0);
+    const actions = screen.getByRole("group", { name: "Ask actions" });
+    expect(actions).toContainElement(screen.getByText("4 message(s)"));
+    expect(actions).toContainElement(screen.getByRole("button", { name: "Clear chat" }));
+    expect(actions).toContainElement(screen.getByRole("button", { name: "Ask with evidence" }));
+  });
+
+  it("collapses only messages longer than the preview threshold", async () => {
+    const longContent = `${"Long answer. ".repeat(80)}Final sentence.`;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({
+          messages: [
+            {
+              id: "ask_short",
+              role: "assistant",
+              content: "Short answer.",
+              evidenceUsed: [],
+              warnings: [],
+              createdAt: "2026-07-03T00:00:00.000Z"
+            },
+            {
+              id: "ask_long",
+              role: "user",
+              content: longContent,
+              evidenceUsed: [],
+              warnings: [],
+              createdAt: "2026-07-03T00:00:01.000Z"
+            }
+          ]
+        })
+      )
+    );
+
+    render(<AskPanel paper={paper} evidence={[]} />);
+
+    expect(await screen.findByText("Short answer.")).toBeInTheDocument();
+    expect(screen.queryByText(longContent)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Expand message" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Collapse message" })).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Expand message" }));
+
+    expect(screen.getByText(longContent)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Collapse message" })).toBeInTheDocument();
   });
 
   it("asks with corpus retrieval without selected evidence", async () => {

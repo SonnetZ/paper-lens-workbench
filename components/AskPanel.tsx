@@ -13,6 +13,8 @@ import type {
 } from "@/lib/types";
 import { InfoHint } from "@/components/InfoHint";
 
+const MESSAGE_PREVIEW_CHARS = 240;
+
 export function AskPanel({
   paper,
   evidence,
@@ -27,6 +29,7 @@ export function AskPanel({
   const [question, setQuestion] = useState("");
   const [payloadScope, setPayloadScope] = useState<PayloadScope>("Selection");
   const [messages, setMessages] = useState<AskChatMessage[]>([]);
+  const [expandedMessages, setExpandedMessages] = useState<Record<string, boolean>>({});
   const [status, setStatus] = useState<"idle" | "asking" | "error">("idle");
   const [message, setMessage] = useState("");
   const reviewProjectId = knowledgeBaseId || "default";
@@ -149,54 +152,73 @@ export function AskPanel({
       </p>
       {messages.length > 0 ? (
         <div className="ask-chat" aria-label="Ask chat history">
-          <div className="ask-chat-header">
-            <p className="font-mono text-xs text-swiss-muted">{messages.length} message(s)</p>
-            <button type="button" onClick={clearChat} className="workbench-button">
-              Clear chat
-            </button>
-          </div>
           <div className="grid gap-2">
-            {messages.map((item) => (
-              <article
-                key={item.id}
-                className={`ask-message ${
-                  item.role === "assistant" ? "ask-message-assistant" : "ask-message-user"
-                }`}
-              >
-                <p className="ask-message-role">{item.role === "assistant" ? "Assistant" : "Reviewer"}</p>
-                {item.role === "assistant" ? (
-                  <div className="ask-markdown">
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm]}
-                      components={{
-                        a: ({ children, ...props }) => (
-                          <a {...props} target="_blank" rel="noreferrer">
-                            {children}
-                          </a>
-                        )
-                      }}
+            {messages.map((item) => {
+              const isLong = item.content.length > MESSAGE_PREVIEW_CHARS;
+              const expanded = expandedMessages[item.id] ?? false;
+              const visibleContent =
+                isLong && !expanded
+                  ? `${item.content.slice(0, MESSAGE_PREVIEW_CHARS).trimEnd()}...`
+                  : item.content;
+              const showDetails = !isLong || expanded;
+
+              return (
+                <article
+                  key={item.id}
+                  className={`ask-message ${
+                    item.role === "assistant" ? "ask-message-assistant" : "ask-message-user"
+                  }`}
+                >
+                  <p className="ask-message-role">{item.role === "assistant" ? "Assistant" : "Reviewer"}</p>
+                  {item.role === "assistant" ? (
+                    <div className="ask-markdown">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          a: ({ children, ...props }) => (
+                            <a {...props} target="_blank" rel="noreferrer">
+                              {children}
+                            </a>
+                          )
+                        }}
+                      >
+                        {visibleContent}
+                      </ReactMarkdown>
+                    </div>
+                  ) : (
+                    <p className="text-sm leading-5">{visibleContent}</p>
+                  )}
+                  {isLong ? (
+                    <button
+                      type="button"
+                      aria-label={expanded ? "Collapse message" : "Expand message"}
+                      onClick={() =>
+                        setExpandedMessages((current) => ({
+                          ...current,
+                          [item.id]: !expanded
+                        }))
+                      }
+                      className="ask-message-toggle"
                     >
-                      {item.content}
-                    </ReactMarkdown>
-                  </div>
-                ) : (
-                  <p className="text-sm leading-5">{item.content}</p>
-                )}
-                {item.role === "assistant" && item.evidenceUsed.length > 0 ? (
-                  <div className="mt-2 grid gap-1 border-t border-swiss-rule pt-2">
-                    <p className="font-mono text-xs uppercase text-swiss-muted">Evidence used</p>
-                    {item.evidenceUsed.map((locator) => (
-                      <p key={locator} className="font-mono text-xs text-swiss-red">
-                        {locator}
-                      </p>
-                    ))}
-                  </div>
-                ) : null}
-                {item.role === "assistant" && item.warnings.length > 0 ? (
-                  <p className="mt-2 text-xs text-swiss-muted">{item.warnings.join(" ")}</p>
-                ) : null}
-              </article>
-            ))}
+                      {expanded ? "Collapse" : "Expand"}
+                    </button>
+                  ) : null}
+                  {showDetails && item.role === "assistant" && item.evidenceUsed.length > 0 ? (
+                    <div className="mt-2 grid gap-1 border-t border-swiss-rule pt-2">
+                      <p className="font-mono text-xs uppercase text-swiss-muted">Evidence used</p>
+                      {item.evidenceUsed.map((locator) => (
+                        <p key={locator} className="font-mono text-xs text-swiss-red">
+                          {locator}
+                        </p>
+                      ))}
+                    </div>
+                  ) : null}
+                  {showDetails && item.role === "assistant" && item.warnings.length > 0 ? (
+                    <p className="mt-2 text-xs text-swiss-muted">{item.warnings.join(" ")}</p>
+                  ) : null}
+                </article>
+              );
+            })}
           </div>
         </div>
       ) : null}
@@ -214,26 +236,31 @@ export function AskPanel({
           className="min-h-20 resize-y border border-swiss-rule px-2 py-1.5 text-sm leading-5"
         />
       </div>
-      <div className="flex items-center justify-between border-t border-swiss-rule pt-2">
-        <span className="font-mono text-xs text-swiss-muted">
-          {currentEvidence.length} evidence packet(s)
-        </span>
-        <button
-          type="button"
-          aria-label={
-            payloadScope === "Corpus retrieval"
-              ? "Ask with corpus retrieval"
-              : payloadScope === "Current full text"
-                ? "Ask with current full text"
-                : "Ask with evidence"
-          }
-          onClick={ask}
-          disabled={!canAsk || status === "asking"}
-          className="workbench-button"
-        >
-          <PaperPlaneTilt aria-hidden="true" size={14} weight="bold" />
-          {status === "asking" ? "Asking" : "Ask"}
-        </button>
+      <div className="ask-actions" role="group" aria-label="Ask actions">
+        <span className="font-mono text-xs text-swiss-muted">{messages.length} message(s)</span>
+        <div className="ask-action-buttons">
+          {messages.length > 0 ? (
+            <button type="button" onClick={clearChat} className="workbench-button">
+              Clear chat
+            </button>
+          ) : null}
+          <button
+            type="button"
+            aria-label={
+              payloadScope === "Corpus retrieval"
+                ? "Ask with corpus retrieval"
+                : payloadScope === "Current full text"
+                  ? "Ask with current full text"
+                  : "Ask with evidence"
+            }
+            onClick={ask}
+            disabled={!canAsk || status === "asking"}
+            className="workbench-button"
+          >
+            <PaperPlaneTilt aria-hidden="true" size={14} weight="bold" />
+            {status === "asking" ? "Asking" : "Ask"}
+          </button>
+        </div>
       </div>
       {message ? <p className="text-sm text-swiss-red">{message}</p> : null}
     </section>

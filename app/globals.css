@@ -840,10 +840,18 @@ textarea {
   padding-top: 10px;
 }
 
-.ask-chat-header {
+.ask-actions {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
+  border-top: 1px solid #e4e4e7;
+  padding-top: 10px;
+}
+
+.ask-action-buttons {
+  display: inline-flex;
+  align-items: center;
   gap: 8px;
 }
 
@@ -867,6 +875,22 @@ textarea {
   font-family: "Geist Mono", "SFMono-Regular", Consolas, monospace;
   font-size: 11px;
   line-height: 1.3;
+}
+
+.ask-message-toggle {
+  margin-top: 8px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: #e4002b;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.ask-message-toggle:hover {
+  color: #18181b;
 }
 
 .ask-markdown {
