@@ -110,6 +110,20 @@ describe("MarkdownReader", () => {
 
   it("opens an inline question box for selected markdown text and asks with scoped evidence", async () => {
     const onEvidence = vi.fn();
+    const onAskMessages = vi.fn();
+    const messages = [
+      {
+        id: "ask_assistant",
+        reviewProjectId: "review-a",
+        recordId: "FT0001",
+        payloadScope: "Selection",
+        role: "assistant",
+        content: "The passage describes human checking after AI coding.",
+        evidenceUsed: ["Evaluation"],
+        warnings: [],
+        createdAt: "2026-07-22T00:00:01.000Z"
+      }
+    ];
     const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
       Response.json({
         answer: {
@@ -118,7 +132,8 @@ describe("MarkdownReader", () => {
           answer: "The passage describes human checking after AI coding.",
           evidenceUsed: ["Evaluation"],
           warnings: []
-        }
+        },
+        messages
       })
     );
     vi.stubGlobal("fetch", fetchMock);
@@ -134,7 +149,18 @@ describe("MarkdownReader", () => {
           "",
           "The authors compared model-suggested codes with human reviewer notes."
         ].join("\n")}
+        knowledgeBaseId="review-a"
+        modelSettings={{
+          mode: "online",
+          localBaseUrl: "http://127.0.0.1:8000/v1",
+          localModel: "",
+          onlineBaseUrl: "https://example.test/v1",
+          onlineModel: "reviewer-model",
+          onlineConfigSource: "manual",
+          onlineApiKey: "secret"
+        }}
         onEvidence={onEvidence}
+        onAskMessages={onAskMessages}
       />
     );
 
@@ -189,6 +215,12 @@ describe("MarkdownReader", () => {
       expect.objectContaining({
         question: "What does this imply for validation?",
         payloadScope: "Selection",
+        reviewProjectId: "review-a",
+        knowledgeBaseId: "review-a",
+        modelSettings: expect.objectContaining({
+          mode: "online",
+          onlineModel: "reviewer-model"
+        }),
         evidence: [
           expect.objectContaining({
             recordId: "FT0001",
@@ -204,6 +236,7 @@ describe("MarkdownReader", () => {
     expect(
       await screen.findByText("The passage describes human checking after AI coding.")
     ).toBeInTheDocument();
+    expect(onAskMessages).toHaveBeenCalledWith(messages);
 
     await userEvent.click(screen.getByRole("button", { name: "Save evidence" }));
     expect(onEvidence).toHaveBeenCalledWith(

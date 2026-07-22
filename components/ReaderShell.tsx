@@ -1,9 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { EvidenceInput, PaperListItem, RuntimeModelSettings } from "@/lib/types";
+import type {
+  AskChatMessage,
+  EvidenceInput,
+  PaperListItem,
+  RuntimeModelSettings
+} from "@/lib/types";
 import { MarkdownReader } from "@/components/MarkdownReader";
 import { PdfReader } from "@/components/PdfReader";
+import { SelectionConversationRail } from "@/components/SelectionConversationRail";
 
 interface Props {
   paper: PaperListItem | null;
@@ -28,6 +34,7 @@ export function ReaderShell({
   const [markdown, setMarkdown] = useState<string>("");
   const [error, setError] = useState<string>("");
   const [mode, setMode] = useState<ReaderMode>(() => preferredReaderMode(hasMarkdown, hasPdf));
+  const [selectionMessages, setSelectionMessages] = useState<AskChatMessage[]>([]);
 
   useEffect(() => {
     setMode(preferredReaderMode(hasMarkdown, hasPdf));
@@ -45,6 +52,31 @@ export function ReaderShell({
       .then((data: { content: string }) => setMarkdown(data.content))
       .catch((err: Error) => setError(err.message));
   }, [paper]);
+
+  useEffect(() => {
+    if (!paperRecordId) {
+      setSelectionMessages([]);
+      return;
+    }
+    const controller = new AbortController();
+    const params = new URLSearchParams({
+      reviewProjectId: knowledgeBaseId,
+      payloadScope: "Selection"
+    });
+    fetch(`/api/papers/${encodeURIComponent(paperRecordId)}/ask?${params.toString()}`, {
+      signal: controller.signal
+    })
+      .then(async (response) => {
+        const data = (await response.json()) as { messages?: AskChatMessage[] };
+        if (!response.ok) throw new Error("Selection conversation not available");
+        setSelectionMessages(data.messages ?? []);
+      })
+      .catch((fetchError) => {
+        if (fetchError instanceof DOMException && fetchError.name === "AbortError") return;
+        setSelectionMessages([]);
+      });
+    return () => controller.abort();
+  }, [knowledgeBaseId, paperRecordId]);
 
   if (!paper) {
     return (
@@ -83,31 +115,38 @@ export function ReaderShell({
           <TelemetryItem label="KB" value={knowledgeBaseId} />
         </dl>
       </header>
-      {mode === "PDF" ? (
-        paper.hasPdf ? (
-          <PdfReader
+      <div className="relative min-h-0 overflow-hidden">
+        {mode === "PDF" ? (
+          paper.hasPdf ? (
+            <PdfReader
+              recordId={paper.recordId}
+              pdfUrl={`/api/papers/${paper.recordId}/pdf`}
+              sourcePath={paper.pdfPath}
+              modelSettings={modelSettings}
+              knowledgeBaseId={knowledgeBaseId}
+              onEvidence={onEvidence}
+              onAskMessages={setSelectionMessages}
+            />
+          ) : (
+            <div className="p-6 text-sm text-swiss-muted">PDF source not available</div>
+          )
+        ) : error ? (
+          <div className="p-6 text-sm text-swiss-red">{error}</div>
+        ) : markdown ? (
+          <MarkdownReader
             recordId={paper.recordId}
-            pdfUrl={`/api/papers/${paper.recordId}/pdf`}
-            sourcePath={paper.pdfPath}
+            sourcePath={paper.markdownPath ?? paper.sourcePath}
+            markdown={markdown}
             modelSettings={modelSettings}
+            knowledgeBaseId={knowledgeBaseId}
             onEvidence={onEvidence}
+            onAskMessages={setSelectionMessages}
           />
         ) : (
-          <div className="p-6 text-sm text-swiss-muted">PDF source not available</div>
-        )
-      ) : error ? (
-        <div className="p-6 text-sm text-swiss-red">{error}</div>
-      ) : markdown ? (
-        <MarkdownReader
-          recordId={paper.recordId}
-          sourcePath={paper.markdownPath ?? paper.sourcePath}
-          markdown={markdown}
-          modelSettings={modelSettings}
-          onEvidence={onEvidence}
-        />
-      ) : (
-        <div className="p-6 text-sm text-swiss-muted">Markdown source not loaded.</div>
-      )}
+          <div className="p-6 text-sm text-swiss-muted">Markdown source not loaded.</div>
+        )}
+        <SelectionConversationRail messages={selectionMessages} />
+      </div>
     </section>
   );
 }

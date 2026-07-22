@@ -164,6 +164,20 @@ describe("PdfReader", () => {
 
   it("opens an inline question box for selected PDF text and saves it as evidence", async () => {
     const onEvidence = vi.fn();
+    const onAskMessages = vi.fn();
+    const messages = [
+      {
+        id: "ask_user",
+        reviewProjectId: "review-a",
+        recordId: "FT0001",
+        payloadScope: "Selection",
+        role: "user",
+        content: "What does this say about evaluation?",
+        evidenceUsed: [],
+        warnings: [],
+        createdAt: "2026-07-22T00:00:00.000Z"
+      }
+    ];
     const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
       Response.json({
         answer: {
@@ -172,7 +186,8 @@ describe("PdfReader", () => {
           answer: "The selected PDF passage describes the evaluation workflow.",
           evidenceUsed: ["PDF p.1"],
           warnings: []
-        }
+        },
+        messages
       })
     );
     vi.stubGlobal("fetch", fetchMock);
@@ -182,7 +197,18 @@ describe("PdfReader", () => {
         recordId="FT0001"
         pdfUrl="/api/papers/FT0001/pdf"
         sourcePath="/sample/FT0001.pdf"
+        knowledgeBaseId="review-a"
+        modelSettings={{
+          mode: "local",
+          localBaseUrl: "http://127.0.0.1:8000/v1",
+          localModel: "reader-model",
+          onlineBaseUrl: "",
+          onlineModel: "",
+          onlineConfigSource: "manual",
+          onlineApiKey: ""
+        }}
         onEvidence={onEvidence}
+        onAskMessages={onAskMessages}
       />
     );
 
@@ -236,6 +262,12 @@ describe("PdfReader", () => {
       expect.objectContaining({
         question: "What does this say about evaluation?",
         payloadScope: "Selection",
+        reviewProjectId: "review-a",
+        knowledgeBaseId: "review-a",
+        modelSettings: expect.objectContaining({
+          mode: "local",
+          localModel: "reader-model"
+        }),
         evidence: [
           expect.objectContaining({
             recordId: "FT0001",
@@ -252,6 +284,7 @@ describe("PdfReader", () => {
     expect(
       await screen.findByText("The selected PDF passage describes the evaluation workflow.")
     ).toBeInTheDocument();
+    expect(onAskMessages).toHaveBeenCalledWith(messages);
 
     await userEvent.click(screen.getByRole("button", { name: "Save evidence" }));
 

@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type {
+  AskChatMessage,
   EvidenceInput,
   EvidencePacket,
   RuntimeModelSettings,
@@ -18,7 +19,9 @@ interface Props {
   sourcePath: string;
   markdown: string;
   modelSettings?: RuntimeModelSettings;
+  knowledgeBaseId?: string;
   onEvidence: (input: EvidenceInput) => void;
+  onAskMessages?: (messages: AskChatMessage[]) => void;
 }
 
 function firstBodyParagraph(markdown: string): { heading: string; text: string } {
@@ -33,7 +36,15 @@ function firstBodyParagraph(markdown: string): { heading: string; text: string }
   return { heading, text: "" };
 }
 
-export function MarkdownReader({ recordId, sourcePath, markdown, modelSettings, onEvidence }: Props) {
+export function MarkdownReader({
+  recordId,
+  sourcePath,
+  markdown,
+  modelSettings,
+  knowledgeBaseId = "default",
+  onEvidence,
+  onAskMessages
+}: Props) {
   const articleRef = useRef<HTMLElement | null>(null);
   const [selectionDraft, setSelectionDraft] = useState<SelectionDraft | null>(null);
   const [selectionQuestion, setSelectionQuestion] = useState("");
@@ -102,17 +113,22 @@ export function MarkdownReader({ recordId, sourcePath, markdown, modelSettings, 
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          reviewProjectId: knowledgeBaseId,
           question: selectionQuestion.trim(),
           payloadScope: "Selection",
-          evidence: [selectedEvidence]
+          evidence: [selectedEvidence],
+          knowledgeBaseId,
+          modelSettings
         })
       });
       const data = (await response.json()) as {
         answer?: ScopedAskAnswer;
+        messages?: AskChatMessage[];
         error?: string;
       };
       if (!response.ok || !data.answer) throw new Error(data.error ?? "Unable to answer selection");
       setSelectionAnswer(data.answer);
+      if (data.messages) onAskMessages?.(data.messages);
       setAskStatus("idle");
     } catch (error) {
       setAskStatus("error");

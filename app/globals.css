@@ -893,6 +893,135 @@ textarea {
   color: #18181b;
 }
 
+.selection-conversation-trigger {
+  position: absolute;
+  top: 56px;
+  right: 12px;
+  z-index: 30;
+  display: flex;
+  min-height: 34px;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid rgba(228, 0, 43, 0.24);
+  background: rgba(255, 255, 255, 0.94);
+  padding: 7px 9px;
+  color: #18181b;
+  box-shadow: 0 10px 28px rgba(24, 24, 27, 0.14);
+  backdrop-filter: blur(12px);
+  font-family: "Geist Mono", "SFMono-Regular", Consolas, monospace;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.selection-conversation-trigger:hover {
+  border-color: #e4002b;
+  color: #e4002b;
+}
+
+.selection-conversation-count {
+  display: grid;
+  min-width: 18px;
+  height: 18px;
+  place-items: center;
+  background: #e4002b;
+  padding: 0 4px;
+  color: #ffffff;
+  font-size: 10px;
+}
+
+.selection-conversation-rail {
+  position: absolute;
+  top: 56px;
+  right: 12px;
+  bottom: 12px;
+  z-index: 30;
+  display: grid;
+  width: min(360px, calc(100% - 24px));
+  min-height: 0;
+  grid-template-rows: auto minmax(0, 1fr);
+  border: 1px solid rgba(216, 219, 225, 0.96);
+  border-left: 2px solid #e4002b;
+  background: rgba(250, 250, 250, 0.96);
+  box-shadow: 0 22px 54px rgba(24, 24, 27, 0.2);
+  backdrop-filter: blur(16px);
+}
+
+.selection-conversation-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid #d8dbe1;
+  background: rgba(255, 255, 255, 0.92);
+  padding: 12px;
+}
+
+.selection-conversation-kicker,
+.selection-conversation-summary,
+.selection-conversation-role {
+  margin: 0;
+  font-family: "Geist Mono", "SFMono-Regular", Consolas, monospace;
+}
+
+.selection-conversation-kicker {
+  color: #18181b;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.selection-conversation-summary {
+  margin-top: 3px;
+  color: #71717a;
+  font-size: 10px;
+}
+
+.selection-conversation-list {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px;
+}
+
+.selection-conversation-message {
+  border: 1px solid #d8dbe1;
+  background: #ffffff;
+  padding: 10px;
+}
+
+.selection-conversation-message-assistant {
+  border-left: 2px solid #e4002b;
+}
+
+.selection-conversation-message-user {
+  background: #f4f5f7;
+}
+
+.selection-conversation-role {
+  margin-bottom: 6px;
+  color: #71717a;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.selection-conversation-evidence {
+  display: grid;
+  gap: 3px;
+  margin-top: 9px;
+  border-top: 1px solid #d8dbe1;
+  padding-top: 8px;
+  color: #e4002b;
+  font-family: "Geist Mono", "SFMono-Regular", Consolas, monospace;
+  font-size: 10px;
+}
+
+.selection-conversation-evidence p {
+  margin: 0;
+}
+
 .ask-markdown {
   color: #18181b;
   font-size: 14px;

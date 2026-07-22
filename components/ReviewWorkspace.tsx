@@ -126,7 +126,7 @@ export function ReviewWorkspace({
           </ArtifactView>
 
           <ArtifactView
-            title="Knowledge base"
+            title="Knowledge"
             info="Select a knowledge base and search its contents. All review knowledge operations use the selected base."
             storageKey="review-workspace:knowledge-base"
           >
@@ -178,7 +178,7 @@ export function ReviewWorkspace({
             )}
           </ArtifactView>
           <ArtifactView
-            title="Knowledge base"
+            title="Knowledge"
             info="Select a knowledge base and search its contents. All review knowledge operations use the selected base."
             storageKey="review-workspace:evidence-knowledge-base"
           >

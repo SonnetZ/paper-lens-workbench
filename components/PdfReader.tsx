@@ -6,6 +6,7 @@ import {
 } from "@phosphor-icons/react";
 import { useEffect, useRef, useState } from "react";
 import type {
+  AskChatMessage,
   EvidenceInput,
   EvidencePacket,
   RuntimeModelSettings,
@@ -20,12 +21,22 @@ interface Props {
   pdfUrl: string;
   sourcePath: string | null;
   modelSettings?: RuntimeModelSettings;
+  knowledgeBaseId?: string;
   onEvidence: (input: EvidenceInput) => void;
+  onAskMessages?: (messages: AskChatMessage[]) => void;
 }
 
 type PdfJsModule = typeof import("pdfjs-dist/legacy/build/pdf.mjs");
 
-export function PdfReader({ recordId, pdfUrl, sourcePath, modelSettings, onEvidence }: Props) {
+export function PdfReader({
+  recordId,
+  pdfUrl,
+  sourcePath,
+  modelSettings,
+  knowledgeBaseId = "default",
+  onEvidence,
+  onAskMessages
+}: Props) {
   const [pageNumber, setPageNumber] = useState(1);
   const [pageCount, setPageCount] = useState<number | null>(null);
   const [status, setStatus] = useState<"loading" | "rendering" | "idle" | "error">("loading");
@@ -213,17 +224,22 @@ export function PdfReader({ recordId, pdfUrl, sourcePath, modelSettings, onEvide
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          reviewProjectId: knowledgeBaseId,
           question: selectionQuestion.trim(),
           payloadScope: "Selection",
-          evidence: [evidenceInputToPacket(selectionDraft.evidence)]
+          evidence: [evidenceInputToPacket(selectionDraft.evidence)],
+          knowledgeBaseId,
+          modelSettings
         })
       });
       const data = (await response.json()) as {
         answer?: ScopedAskAnswer;
+        messages?: AskChatMessage[];
         error?: string;
       };
       if (!response.ok || !data.answer) throw new Error(data.error ?? "Unable to answer selection");
       setSelectionAnswer(data.answer);
+      if (data.messages) onAskMessages?.(data.messages);
       setAskStatus("idle");
     } catch (error) {
       setAskStatus("error");
