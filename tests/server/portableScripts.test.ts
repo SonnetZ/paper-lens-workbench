@@ -21,6 +21,7 @@ describe("portable scripts", () => {
     expect(packageJson.scripts["portable:smoke"]).toBe("node scripts/portable-smoke.mjs");
     expect(packageJson.scripts["dev:local:cpu"]).toBe("bash scripts/dev-local.sh cpu");
     expect(packageJson.scripts["dev:local:gpu"]).toBe("bash scripts/dev-local.sh gpu");
+    expect(packageJson.scripts["setup:local"]).toBe("bash scripts/setup-local.sh");
     expect(packageJson.scripts["translate:opus"]).toContain(
       "conda run -n lit_reviewer python scripts/opus_mt_translate_server.py"
     );
@@ -34,6 +35,8 @@ describe("portable scripts", () => {
     expect(fs.existsSync(path.join(appRoot, "scripts/pack-portable.mjs"))).toBe(true);
     expect(fs.existsSync(path.join(appRoot, "scripts/portable-smoke.mjs"))).toBe(true);
     expect(fs.existsSync(path.join(appRoot, "scripts/dev-local.sh"))).toBe(true);
+    expect(fs.existsSync(path.join(appRoot, "scripts/setup-local.sh"))).toBe(true);
+    expect(fs.existsSync(path.join(appRoot, "environment.local.yml"))).toBe(true);
     expect(fs.existsSync(path.join(appRoot, "scripts/bge_m3_embedding_server.py"))).toBe(true);
   });
 
@@ -103,7 +106,10 @@ describe("portable scripts", () => {
         "lib/server/reviewExport.ts",
         "lib/server/translation.ts",
         "scripts/opus_mt_translate_server.py",
+        "scripts/setup-local.sh",
+        "environment.local.yml",
         "scripts/bge_m3_embedding_server.py",
+        "tests/server/localSetup.test.ts",
         "tests/server/translation.test.ts",
         "tests/client/ReviewMaterialExport.test.tsx",
         "tests/server/reviewExport.test.ts",
@@ -116,6 +122,7 @@ describe("portable scripts", () => {
         "translate:opus",
         "dev:local:cpu",
         "dev:local:gpu",
+        "setup:local",
         "embed:bge-m3:cpu",
         "embed:bge-m3:gpu",
         "portable:check",
@@ -130,6 +137,8 @@ describe("portable scripts", () => {
 
     expect(requiredFiles).toContain("PORTABLE.md");
     expect(requiredFiles).toContain("scripts/dev-local.sh");
+    expect(requiredFiles).toContain("scripts/setup-local.sh");
+    expect(requiredFiles).toContain("environment.local.yml");
     expect(requiredFiles).toContain("scripts/portable-smoke.mjs");
     expect(requiredFiles).toContain("scripts/portable-smoke-core.mjs");
     expect(requiredFiles).toContain("scripts/portable-smoke-core.d.mts");

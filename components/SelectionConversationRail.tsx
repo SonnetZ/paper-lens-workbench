@@ -19,8 +19,7 @@ export function SelectionConversationRail({ messages }: { messages: AskChatMessa
         onClick={() => setOpen(true)}
         className="selection-conversation-trigger"
       >
-        <ChatCircleText aria-hidden="true" className="size-4" weight="bold" />
-        <span>Selection</span>
+        <ChatCircleText aria-hidden="true" className="size-5" weight="bold" />
         <span className="selection-conversation-count">{messages.length}</span>
       </button>
     );

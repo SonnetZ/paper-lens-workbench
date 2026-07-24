@@ -1,41 +1,108 @@
 # Paper Lens Workbench
 
-Paper Lens Workbench is a local web app for reading papers with LLM assistance. It supports PDF and Markdown reading, selected-text evidence capture, full-text screening notes, extraction notes, project-scoped knowledge bases, and corpus-level question answering.
+Paper Lens Workbench is a local-first workspace for reading PDF and Markdown papers, capturing evidence, asking scoped questions, translating selected text, and building project-specific knowledge bases for literature reviews.
 
-It is designed as a portable app box: clone or copy this directory, install dependencies, point it at your review corpus, and keep all review data on your own machine.
+## Quick Start
+
+### 1. Clone and install
+
+```bash
+git clone https://github.com/SonnetZ/paper-lens-workbench.git
+cd paper-lens-workbench
+npm install
+npm run setup:local
+```
+
+`npm install` installs the web application and its Node.js dependencies.
+
+`npm run setup:local` automatically creates or updates the Python environment used by the bundled translation and embedding services. It installs Python 3.11, PyTorch, Transformers, Sentence Transformers, SentencePiece, Sacremoses, and Requests.
+
+### 2. Start the complete local stack
+
+CPU:
+
+```bash
+npm run dev:local:cpu
+```
+
+NVIDIA GPU for BGE-M3 embedding:
+
+```bash
+npm run dev:local:gpu
+```
+
+Open `http://127.0.0.1:3000`.
+
+The one-command local stack starts:
+
+| Component | Address | Purpose |
+| --- | --- | --- |
+| Paper Lens web app | `http://127.0.0.1:3000` | Reader, evidence, review forms, Ask, and knowledge bases |
+| OPUS-MT | `http://127.0.0.1:8010` | Local English-to-Chinese selection translation |
+| BGE-M3 | `http://127.0.0.1:8090/v1` | Local embeddings for knowledge search and retrieval |
+
+The services run in the background. Their logs and PID files are written to `logs/`. The startup command prints the exact command for stopping them.
+
+The OPUS-MT and BGE-M3 model files are downloaded on first use and cached locally. The first startup therefore takes longer and requires internet access.
+
+## What Is Installed
+
+### Web application
+
+`npm install` installs:
+
+- Next.js and React
+- PDF.js for PDF rendering and text selection
+- SQLite support through `better-sqlite3`; no database server is required
+- Markdown rendering, UI icons, animations, testing, and build tooling
+
+### Local AI helpers
+
+`npm run setup:local` installs the runtime required by:
+
+- OPUS-MT translation
+- BGE-M3 embeddings
+- CPU execution and optional CUDA execution through PyTorch
+
+The setup command is safe to run again after pulling updates. It updates the existing local Python environment instead of creating another one.
+
+### Generative LLM
+
+The bundled local stack does **not** install or start a generative LLM. The app starts in mock mode until you select a local or online OpenAI-compatible model from the **Model source** panel.
+
+For an existing local model server:
+
+```bash
+LOCAL_LLM_BASE_URL=http://127.0.0.1:8000/v1
+LOCAL_LLM_MODEL=your-model-name
+```
+
+For an online OpenAI-compatible provider:
+
+```bash
+ONLINE_LLM_BASE_URL=https://api.openai.com/v1
+ONLINE_LLM_API_KEY=your-api-key
+ONLINE_LLM_MODEL=your-model-name
+ONLINE_LLM_CONFIG_SOURCE=env
+```
+
+These values can be placed in `.env.local`, or configured from the application where supported.
 
 ## Requirements
 
 - Node.js 20 or newer
 - npm
-- A machine that can install native Node packages
+- Miniconda, Anaconda, or another installation that provides `conda`
+- Internet access during installation and the first model download
+- Optional: an NVIDIA GPU and compatible driver for `npm run dev:local:gpu`
 
-The app uses `better-sqlite3`, so you do not need to install or run a separate SQLite server. The local database is a normal file such as `reader.sqlite`.
+You do not need to create a conda environment manually. `npm run setup:local` handles it.
 
-## Quick Start
+## Try It Before Adding Your Corpus
 
-```bash
-npm install
-cp .env.example .env.local
-npm run dev -- -p 3000
-```
+The repository includes synthetic sample data. After Quick Start, the app opens without additional configuration.
 
-Open the URL printed by Next.js.
-
-For the local translation, BGE-M3 embedding, and web app together:
-
-```bash
-npm run dev:local:cpu
-npm run dev:local:gpu
-```
-
-`dev:local:cpu` keeps BGE-M3 on CPU. `dev:local:gpu` runs BGE-M3 on CUDA. The OPUS-MT translation sidecar currently runs on CPU in both modes.
-
-The sample configuration uses synthetic data in `sample-data/`, so the app can launch before you connect a private corpus.
-
-## Review Corpus Setup
-
-You can configure paths in the app from the corpus setup panel, or edit `.env.local`.
+To connect a review corpus, use **Library paths** in the app or create `.env.local`:
 
 ```bash
 REVIEW_DATA_DIR=/absolute/path/to/review_data
@@ -45,110 +112,68 @@ READER_DB_PATH=/absolute/path/to/reader.sqlite
 READER_EXPORT_DIR=/absolute/path/to/exports
 ```
 
-`REVIEW_DATA_DIR` should contain `full_text_screening.csv`. When you save corpus paths, the app checks the paper folders and can add missing base rows for discovered paper files.
+`REVIEW_DATA_DIR` should contain `full_text_screening.csv`. Saving the paths validates the corpus and can add missing base rows for discovered paper files.
 
-## Reading And Evidence
+## Lighter Startup Options
 
-The reader opens Markdown or PDF sources. PDF is the preferred source when both PDF and Markdown exist; Markdown remains useful for converted files and easier text reading.
-
-Select text in PDF or Markdown to save an evidence packet, ask about the selected passage, or translate the passage. Manual reviewer notes can also be saved as evidence.
-
-Evidence is isolated by the selected review project knowledge base. Switching from one knowledge base to another gives that project its own evidence tray and review-context layer.
-
-## Knowledge Bases
-
-Each knowledge base is a review project namespace. The selected knowledge base controls:
-
-- saved evidence visibility
-- document indexing
-- review artifact indexing
-- knowledge search
-- corpus retrieval for Ask
-
-The minimal RAG store has two layers:
-
-- document layer: extracted paper text chunks, preferring PDF over Markdown
-- review layer: extraction artifacts and saved evidence packets
-
-Use `Build index` to index the corpus. If a paper has both PDF and Markdown, only the PDF text is indexed. Use `Add document` for the current paper; once indexed in the selected project, the button shows `Document indexed`.
-
-`Add artifacts` indexes the current paper's extraction notes and saved evidence packets. `Add included outputs` does the same for papers marked `include`.
-
-Without an embedding endpoint, search uses `portable-hash-v1`, a dependency-free local baseline. To use BGE-M3 or another OpenAI-compatible embedding server, set:
+Start only the web application:
 
 ```bash
-RETRIEVAL_EMBEDDING_BASE_URL=http://127.0.0.1:8090/v1
-RETRIEVAL_EMBEDDING_MODEL=BAAI/bge-m3
-RETRIEVAL_EMBEDDING_API_KEY=
+npm run dev
 ```
 
-Start the bundled BGE-M3 server from the existing `lit_reviewer` conda environment:
+This is useful for UI development or mock-mode review. It does not start OPUS-MT or BGE-M3.
+
+Start helpers separately:
 
 ```bash
+npm run translate:opus
 npm run embed:bge-m3:cpu
 npm run embed:bge-m3:gpu
 ```
 
-Both commands use the same model, normalization, and max length; only the device changes. If you switch from CPU to GPU with the same settings, the stored vectors remain compatible. Rebuild the index when you change model, max length, normalization, or for final reproducible outputs.
+## Main Workflow
 
-After changing the embedding model, rebuild the index. Check indexed content from `Knowledge search`, or inspect the local SQLite tables `knowledge_documents` and `knowledge_chunks`.
+1. Open a PDF or Markdown paper.
+2. Select text to save evidence, translate it, or ask a scoped question.
+3. Record screening and extraction decisions with evidence locators.
+4. Create or select a knowledge base for the review project.
+5. Build the index and use knowledge retrieval for paper or corpus questions.
+6. Export the evidence-backed review material.
 
-## Models
+Evidence, Ask conversations, review artifacts, and knowledge indexes are stored locally. Knowledge bases act as project namespaces, keeping review contexts separate.
 
-The model source panel supports mock mode, local OpenAI-compatible servers, and online OpenAI-compatible providers.
+## Knowledge Search
 
-Local example:
+The bundled BGE-M3 service is configured automatically by `npm run dev:local:cpu` and `npm run dev:local:gpu`.
 
-```bash
-LOCAL_LLM_BASE_URL=http://localhost:8000/v1
-LOCAL_LLM_MODEL=your-local-model
-```
+The knowledge store contains:
 
-Online example:
+- document chunks extracted from papers, preferring PDF when both PDF and Markdown exist
+- review-layer chunks from extraction artifacts and saved evidence
 
-```bash
-ONLINE_LLM_BASE_URL=https://api.openai.com/v1
-ONLINE_LLM_API_KEY=your-api-key
-ONLINE_LLM_MODEL=gpt-4.1-mini
-ONLINE_LLM_CONFIG_SOURCE=env
-```
+Rebuild the index after changing the embedding model, maximum length, or normalization settings.
 
-Manual API keys entered in the browser are sent only to the local Next.js server for that request and are not written to disk. Environment and CC-switch/Codex-style config sources are read by the server process.
+## Local Files
 
-Model-assisted features send scoped payloads:
+By default the app stores runtime data in the project directory:
 
-- selected evidence for selection Ask
-- retrieved knowledge chunks for corpus Ask
-- bounded paper text for Brief
+- `reader.sqlite` — local database
+- `exports/` — generated review exports
+- `logs/` — local service logs and PID files
+- `~/.cache/paper-lens/models/` — downloaded OPUS-MT model files
+- the standard Hugging Face cache — downloaded BGE-M3 files
 
-The app does not send an unrestricted full paper by default.
-
-## Translation
-
-Recommended local translation setup for this project is `en↔zh` with OPUS-MT, running in the existing `lit_reviewer` conda environment:
-
-```bash
-conda run -n lit_reviewer python scripts/opus_mt_translate_server.py --host 127.0.0.1 --port 8010 --model Helsinki-NLP/opus-mt-en-zh
-```
-
-Then point the app at it with:
-
-```bash
-TRANSLATION_OPUS_BASE_URL=http://127.0.0.1:8010
-```
-
-This starts the helper server in `scripts/opus_mt_translate_server.py` and uses `TRANSLATION_OPUS_BASE_URL` from `.env.local`. You can also use the configured local or online LLM for selection translation.
+Private environment files, databases, exports, model files, logs, and build output are excluded from Git and portable archives.
 
 ## Portable Packaging
-
-Check and pack the app:
 
 ```bash
 npm run portable:check
 npm run portable:pack
 ```
 
-The archive excludes private runtime state such as `.env.local`, SQLite databases, exports, `node_modules`, build output, and test reports.
+The generated archive contains the application and setup scripts, but excludes private runtime state and downloaded dependencies.
 
 ## Verification
 
@@ -158,4 +183,4 @@ npm run portable:check
 npm run build
 ```
 
-Run `npm run e2e` when you need browser-flow verification.
+Use `npm run e2e` for browser-flow verification.

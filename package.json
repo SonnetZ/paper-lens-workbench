@@ -9,6 +9,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "e2e": "playwright test",
+    "setup:local": "bash scripts/setup-local.sh",
     "dev:local:cpu": "bash scripts/dev-local.sh cpu",
     "dev:local:gpu": "bash scripts/dev-local.sh gpu",
     "translate:opus": "conda run -n lit_reviewer python scripts/opus_mt_translate_server.py",

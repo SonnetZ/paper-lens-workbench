@@ -36,10 +36,14 @@ packages and does not call an LLM.
 
 ```bash
 npm install
-cp .env.example .env.local
+npm run setup:local
 npm run portable:check
-npm run dev
+npm run dev:local:cpu
 ```
+
+Open `http://127.0.0.1:3000`. Use `npm run dev:local:gpu` when the recipient
+has a compatible NVIDIA GPU. Use `npm run dev` instead when only the web app
+and mock-mode workflow are needed.
 
 To connect a real corpus, edit `.env.local` so the data paths point to local
 copies of the review data:

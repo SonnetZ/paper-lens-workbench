@@ -13,4 +13,15 @@ describe("workspace CSS", () => {
     expect(css).toContain(".workspace-artifact-body");
     expect(css).toContain("overflow-wrap: anywhere");
   });
+
+  it("keeps the collapsed selection conversation badge away from PDF controls", () => {
+    const css = readFileSync(path.join(appRoot, "app/globals.css"), "utf8");
+    const trigger = css.match(/\.selection-conversation-trigger\s*\{([^}]*)\}/)?.[1] ?? "";
+    const rail = css.match(/\.selection-conversation-rail\s*\{([^}]*)\}/)?.[1] ?? "";
+
+    expect(trigger).toContain("top: 50%");
+    expect(trigger).toContain("transform: translateY(-50%)");
+    expect(trigger).toContain("width: 44px");
+    expect(rail).toContain("top: 56px");
+  });
 });

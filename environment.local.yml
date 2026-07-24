@@ -1,0 +1,13 @@
+name: lit_reviewer
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - pip
+  - pip:
+      - requests>=2.31,<3
+      - torch>=2.2
+      - transformers>=4.40,<5
+      - sentence-transformers>=3,<6
+      - sentencepiece>=0.2,<1
+      - sacremoses>=0.1,<1

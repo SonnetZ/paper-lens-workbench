@@ -165,9 +165,12 @@ describe("ReaderShell", () => {
         expect.objectContaining({ signal: expect.any(AbortSignal) })
       )
     );
-    await userEvent.click(
-      await screen.findByRole("button", { name: "Open selection conversation, 2 messages" })
-    );
+    const conversationTrigger = await screen.findByRole("button", {
+      name: "Open selection conversation, 2 messages"
+    });
+    expect(conversationTrigger).not.toHaveTextContent("Selection");
+    expect(conversationTrigger).toHaveTextContent("2");
+    await userEvent.click(conversationTrigger);
     expect(screen.getByText("Saved selection question")).toBeInTheDocument();
     expect(screen.getByText("Saved selection answer")).toBeInTheDocument();
     expect(screen.getByText("PDF p.1")).toBeInTheDocument();
