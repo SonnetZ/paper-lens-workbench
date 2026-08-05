@@ -8,6 +8,7 @@ playwright-report/
 test-results/
 output/
 exports/
+paper-lens-data/
 docs/
 *.log
 __pycache__/

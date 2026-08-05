@@ -10,6 +10,8 @@
     "test:watch": "vitest",
     "e2e": "playwright test",
     "setup:local": "bash scripts/setup-local.sh",
+    "migrate:export": "node scripts/migrate-export.mjs",
+    "migrate:import": "node scripts/migrate-import.mjs",
     "dev:local:cpu": "bash scripts/dev-local.sh cpu",
     "dev:local:gpu": "bash scripts/dev-local.sh gpu",
     "translate:opus": "conda run -n lit_reviewer python scripts/opus_mt_translate_server.py",

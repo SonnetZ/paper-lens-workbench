@@ -7,6 +7,13 @@ if [[ "$device" != "cpu" && "$device" != "gpu" ]]; then
   exit 2
 fi
 
+if ! command -v conda >/dev/null 2>&1 || ! conda run -n lit_reviewer python -c \
+  "import requests, sacremoses, sentence_transformers, sentencepiece, torch, transformers" \
+  >/dev/null 2>&1; then
+  echo "Local AI environment is missing or incomplete. Running setup..."
+  bash scripts/setup-local.sh
+fi
+
 mkdir -p logs
 
 start() {

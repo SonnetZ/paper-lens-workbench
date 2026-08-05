@@ -43,6 +43,8 @@ The one-command local stack starts:
 
 The services run in the background. Their logs and PID files are written to `logs/`. The startup command prints the exact command for stopping them.
 
+The startup command checks the `lit_reviewer` Python environment first. If the environment is missing or incomplete, it automatically runs the local setup before starting the services.
+
 The OPUS-MT and BGE-M3 model files are downloaded on first use and cached locally. The first startup therefore takes longer and requires internet access.
 
 ## What Is Installed
@@ -95,6 +97,7 @@ These values can be placed in `.env.local`, or configured from the application w
 - Miniconda, Anaconda, or another installation that provides `conda`
 - Internet access during installation and the first model download
 - Optional: an NVIDIA GPU and compatible driver for `npm run dev:local:gpu`
+- On Windows, Git Bash or WSL for the bundled local service scripts
 
 You do not need to create a conda environment manually. `npm run setup:local` handles it.
 
@@ -165,6 +168,36 @@ By default the app stores runtime data in the project directory:
 - the standard Hugging Face cache — downloaded BGE-M3 files
 
 Private environment files, databases, exports, model files, logs, and build output are excluded from Git and portable archives.
+
+## Move a Workspace to Another Device
+
+Create a migration archive on the current device:
+
+```bash
+npm run migrate:export
+```
+
+The command packages the SQLite database, RAG indexes, evidence, Ask conversations, review data, PDFs, Markdown papers, and exports. It prints the archive location and the exact new-device steps. Python environments, model caches, dependencies, logs, and secrets are not included.
+
+On the new device:
+
+```bash
+git clone https://github.com/SonnetZ/paper-lens-workbench.git
+cd paper-lens-workbench
+npm install
+npm run migrate:import -- --file /path/to/paper-lens-migration-*.tar.gz
+npm run dev:local:cpu
+```
+
+The import restores data to portable project-relative paths and updates `.env.local` without replacing unrelated settings. Existing workspace data is protected by default; use `--force` only when you intend to replace it:
+
+```bash
+npm run migrate:import -- --file /path/to/archive.tar.gz --force
+```
+
+Stop Paper Lens before importing, especially when replacing an existing SQLite database.
+
+The same archive can move between Linux, macOS, and Windows. Windows users should run the bundled local service commands from Git Bash or WSL. A modern system `tar` command is required, matching the existing portable packaging command.
 
 ## Portable Packaging
 

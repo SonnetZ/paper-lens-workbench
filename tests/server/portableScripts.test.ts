@@ -22,6 +22,8 @@ describe("portable scripts", () => {
     expect(packageJson.scripts["dev:local:cpu"]).toBe("bash scripts/dev-local.sh cpu");
     expect(packageJson.scripts["dev:local:gpu"]).toBe("bash scripts/dev-local.sh gpu");
     expect(packageJson.scripts["setup:local"]).toBe("bash scripts/setup-local.sh");
+    expect(packageJson.scripts["migrate:export"]).toBe("node scripts/migrate-export.mjs");
+    expect(packageJson.scripts["migrate:import"]).toBe("node scripts/migrate-import.mjs");
     expect(packageJson.scripts["translate:opus"]).toContain(
       "conda run -n lit_reviewer python scripts/opus_mt_translate_server.py"
     );
@@ -36,6 +38,9 @@ describe("portable scripts", () => {
     expect(fs.existsSync(path.join(appRoot, "scripts/portable-smoke.mjs"))).toBe(true);
     expect(fs.existsSync(path.join(appRoot, "scripts/dev-local.sh"))).toBe(true);
     expect(fs.existsSync(path.join(appRoot, "scripts/setup-local.sh"))).toBe(true);
+    expect(fs.existsSync(path.join(appRoot, "scripts/migrate-core.mjs"))).toBe(true);
+    expect(fs.existsSync(path.join(appRoot, "scripts/migrate-export.mjs"))).toBe(true);
+    expect(fs.existsSync(path.join(appRoot, "scripts/migrate-import.mjs"))).toBe(true);
     expect(fs.existsSync(path.join(appRoot, "environment.local.yml"))).toBe(true);
     expect(fs.existsSync(path.join(appRoot, "scripts/bge_m3_embedding_server.py"))).toBe(true);
   });
@@ -61,6 +66,7 @@ describe("portable scripts", () => {
     expect(plan.includedFiles.some((file) => file.startsWith("node_modules/"))).toBe(false);
     expect(plan.includedFiles.some((file) => file.startsWith(".next/"))).toBe(false);
     expect(plan.includedFiles.some((file) => file.startsWith("test-results/"))).toBe(false);
+    expect(plan.includedFiles.some((file) => file.startsWith("paper-lens-data/"))).toBe(false);
   });
 
   it("keeps private runtime patterns in the local git ignore", () => {
@@ -107,9 +113,13 @@ describe("portable scripts", () => {
         "lib/server/translation.ts",
         "scripts/opus_mt_translate_server.py",
         "scripts/setup-local.sh",
+        "scripts/migrate-core.mjs",
+        "scripts/migrate-export.mjs",
+        "scripts/migrate-import.mjs",
         "environment.local.yml",
         "scripts/bge_m3_embedding_server.py",
         "tests/server/localSetup.test.ts",
+        "tests/server/migrationScripts.test.ts",
         "tests/server/translation.test.ts",
         "tests/client/ReviewMaterialExport.test.tsx",
         "tests/server/reviewExport.test.ts",
@@ -123,6 +133,8 @@ describe("portable scripts", () => {
         "dev:local:cpu",
         "dev:local:gpu",
         "setup:local",
+        "migrate:export",
+        "migrate:import",
         "embed:bge-m3:cpu",
         "embed:bge-m3:gpu",
         "portable:check",
@@ -138,6 +150,9 @@ describe("portable scripts", () => {
     expect(requiredFiles).toContain("PORTABLE.md");
     expect(requiredFiles).toContain("scripts/dev-local.sh");
     expect(requiredFiles).toContain("scripts/setup-local.sh");
+    expect(requiredFiles).toContain("scripts/migrate-core.mjs");
+    expect(requiredFiles).toContain("scripts/migrate-export.mjs");
+    expect(requiredFiles).toContain("scripts/migrate-import.mjs");
     expect(requiredFiles).toContain("environment.local.yml");
     expect(requiredFiles).toContain("scripts/portable-smoke.mjs");
     expect(requiredFiles).toContain("scripts/portable-smoke-core.mjs");

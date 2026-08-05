@@ -94,6 +94,7 @@ export const requiredFiles = [
   "tests/server/screening.test.ts",
   "tests/server/sourceRegistry.test.ts",
   "tests/server/localSetup.test.ts",
+  "tests/server/migrationScripts.test.ts",
   "tests/server/translation.test.ts",
   "tests/client/AskPanel.test.tsx",
   "tests/client/AppShell.test.tsx",
@@ -118,6 +119,9 @@ export const requiredFiles = [
   "scripts/portable-core.mjs",
   "environment.local.yml",
   "scripts/setup-local.sh",
+  "scripts/migrate-core.mjs",
+  "scripts/migrate-export.mjs",
+  "scripts/migrate-import.mjs",
   "scripts/dev-local.sh",
   "scripts/opus_mt_translate_server.py",
   "scripts/bge_m3_embedding_server.py",
@@ -132,6 +136,8 @@ export const requiredPackageScripts = [
   "test",
   "e2e",
   "setup:local",
+  "migrate:export",
+  "migrate:import",
   "dev:local:cpu",
   "dev:local:gpu",
   "translate:opus",
@@ -151,7 +157,8 @@ const ignoredDirectories = new Set([
   "dist",
   "playwright-report",
   "test-results",
-  "exports"
+  "exports",
+  "paper-lens-data"
 ]);
 
 const ignoredFiles = new Set(["tsconfig.tsbuildinfo"]);
