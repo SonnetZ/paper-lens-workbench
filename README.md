@@ -177,7 +177,7 @@ Create a migration archive on the current device:
 npm run migrate:export
 ```
 
-The command packages the SQLite database, RAG indexes, evidence, Ask conversations, review data, PDFs, Markdown papers, and exports. It prints the archive location and the exact new-device steps. Python environments, model caches, dependencies, logs, and secrets are not included.
+The command packages the SQLite database, RAG indexes, evidence, Ask conversations, review data, and exports. It prints the archive location and the exact new-device steps. PDF and Markdown papers are intentionally excluded, along with Python environments, model caches, dependencies, logs, and secrets.
 
 On the new device:
 
@@ -186,6 +186,18 @@ git clone https://github.com/SonnetZ/paper-lens-workbench.git
 cd paper-lens-workbench
 npm install
 npm run migrate:import -- --file /path/to/paper-lens-migration-*.tar.gz
+```
+
+Copy your papers separately into the restored directories before starting:
+
+```text
+paper-lens-data/papers_pdf/
+paper-lens-data/papers_md/
+```
+
+Keep each PDF and Markdown filename unchanged from the original device so saved records can reconnect to the corresponding paper. Then start Paper Lens:
+
+```bash
 npm run dev:local:cpu
 ```
 

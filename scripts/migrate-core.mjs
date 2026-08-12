@@ -26,8 +26,6 @@ export async function exportWorkspace({ appRoot, archivePath, env = loadLocalEnv
   try {
     fs.mkdirSync(path.join(bundleRoot, "data"), { recursive: true });
     copyDirectory(paths.reviewDataDir, path.join(bundleRoot, "data/review_data"));
-    copyDirectory(paths.paperPdfDir, path.join(bundleRoot, "data/papers_pdf"));
-    copyDirectory(paths.paperMdDir, path.join(bundleRoot, "data/papers_md"));
     copyDirectory(paths.readerExportDir, path.join(bundleRoot, "data/exports"));
 
     const database = new Database(paths.readerDbPath, { readonly: true });
@@ -90,8 +88,8 @@ export async function importWorkspace({ appRoot, archivePath, force = false }) {
     }
 
     copyDirectory(path.join(bundleRoot, "data/review_data"), destinations.reviewDataDir);
-    copyDirectory(path.join(bundleRoot, "data/papers_pdf"), destinations.paperPdfDir);
-    copyDirectory(path.join(bundleRoot, "data/papers_md"), destinations.paperMdDir);
+    fs.mkdirSync(destinations.paperPdfDir, { recursive: true });
+    fs.mkdirSync(destinations.paperMdDir, { recursive: true });
     copyDirectory(path.join(bundleRoot, "data/exports"), destinations.readerExportDir);
     fs.copyFileSync(path.join(bundleRoot, "data/reader.sqlite"), destinations.readerDbPath);
     rewriteSavedCorpusPaths(destinations.readerDbPath, destinations);
@@ -115,7 +113,9 @@ export function importGuide() {
     "1. git clone https://github.com/SonnetZ/paper-lens-workbench.git",
     "2. cd paper-lens-workbench && npm install",
     "3. npm run migrate:import -- --file /path/to/paper-lens-migration.tar.gz",
-    "4. npm run dev:local:cpu",
+    "4. Copy your PDF and Markdown papers into paper-lens-data/papers_pdf and paper-lens-data/papers_md.",
+    "5. Keep the original paper filenames so saved records can reconnect to them.",
+    "6. npm run dev:local:cpu",
     "",
     "The first local start creates the lit_reviewer Python environment when needed.",
     "Use --force only when you intend to replace existing local workspace data.",

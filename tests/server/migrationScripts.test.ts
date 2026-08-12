@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import { exportWorkspace, importWorkspace } from "../../scripts/migrate-core.mjs";
 
 describe("workspace migration", () => {
-  it("exports and imports the database, corpus, papers, and exports with portable paths", async () => {
+  it("exports review state without paper files and restores portable paper directories", async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "paper-lens-migration-"));
     const sourceRoot = path.join(root, "source");
     const targetRoot = path.join(root, "target");
@@ -56,10 +56,10 @@ describe("workspace migration", () => {
 
     expect(fs.readFileSync(path.join(targetRoot, "paper-lens-data/review_data/full_text_screening.csv"), "utf8"))
       .toContain("FT0001");
-    expect(fs.readFileSync(path.join(targetRoot, "paper-lens-data/papers_pdf/paper.pdf"), "utf8"))
-      .toBe("pdf");
-    expect(fs.readFileSync(path.join(targetRoot, "paper-lens-data/papers_md/paper.md"), "utf8"))
-      .toBe("# Paper");
+    expect(fs.existsSync(path.join(targetRoot, "paper-lens-data/papers_pdf"))).toBe(true);
+    expect(fs.existsSync(path.join(targetRoot, "paper-lens-data/papers_md"))).toBe(true);
+    expect(fs.existsSync(path.join(targetRoot, "paper-lens-data/papers_pdf/paper.pdf"))).toBe(false);
+    expect(fs.existsSync(path.join(targetRoot, "paper-lens-data/papers_md/paper.md"))).toBe(false);
     expect(fs.readFileSync(path.join(targetRoot, "exports/review.md"), "utf8")).toBe("# Review");
     expect(result.readerDbPath).toBe(path.join(targetRoot, "reader.sqlite"));
 
